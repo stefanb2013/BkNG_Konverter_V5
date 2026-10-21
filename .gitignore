@@ -1,9 +1,30 @@
+# Only what is needed to run and use the converter belongs to the repository:
+# bkng_converter.py, as6_ladder/, assets/, ANLEITUNG.md, README.md, LICENSE.
+# BkNG base projects (e.g. BkNG_Basis_3_10.zip) are B&R software and must not be part of it.
+# The converter is published as Python source only; no executables are built.
+
+# Python caches
 __pycache__/
 *.pyc
 .pytest_cache/
-A0648/
-A0648_BkNG301/
-A0320/
+
+# Tests (development only)
+test_*.py
+
+# Executables and build output (e.g. of PyInstaller)
+*.exe
+build/
+dist/
+*.spec
+
+# Logs
+*.log
+
+# Automation Studio test projects (A0xxx...) and other project archives
+A0*/
+*.zip
+# Empty BkNG base project, the conversion target for tests
+BkNgBasis_3_01/
+
+# Original task description, not a pip requirements file
 Requirement.txt
-A0648.zip
-A0648_BkNG301.zip
