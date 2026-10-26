@@ -1,4 +1,4 @@
-# BkNG-Konverter V4 – Anleitung
+# BkNG-Konverter V5 – Anleitung
 
 Der Konverter überführt ein **Bk2000-Projekt** oder ein **BkNG-Projekt aus Automation
 Studio 4** in das **BkNG-Basisprojekt für Automation Studio 6**. Am Ende steht ein

@@ -345,7 +345,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "step_ethernet": "Ethernet settings",
         "step_opcua": "OPC UA",
         "step_visu": "User visu (UVIS)",
-        "report_title": "BkNG Converter V4 - conversion report",
+        "report_title": "BkNG Converter V5 - conversion report",
         "report_date": "Date",
         "report_old": "Source project",
         "report_new": "BkNG project",
@@ -683,7 +683,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "step_ethernet": "Ethernet-Einstellungen",
         "step_opcua": "OPC UA",
         "step_visu": "Benutzervisu (UVIS)",
-        "report_title": "BkNG-Konverter V4 - Konvertierungsbericht",
+        "report_title": "BkNG-Konverter V5 - Konvertierungsbericht",
         "report_date": "Datum",
         "report_old": "Quellprojekt",
         "report_new": "BkNG-Projekt",
@@ -5907,7 +5907,7 @@ class ConverterApp(ttk.Frame):
         self.language = tk.StringVar(value=LANGUAGES[_language])
         # Widgets whose text follows the selected language, with their text keys.
         self.translated: list[tuple[tk.Widget, str, str]] = []
-        master.title("BkNG Converter V4")
+        master.title("BkNG Converter V5")
         if ICON_PATH.exists():
             master.iconbitmap(default=str(ICON_PATH))
         master.minsize(700, 400)

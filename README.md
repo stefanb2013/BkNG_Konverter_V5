@@ -1,4 +1,4 @@
-# BkNG-Konverter V4 / BkNG Converter V4
+# BkNG-Konverter V5 / BkNG Converter V5
 
 [Deutsch](#deutsch) | [English](#english)
 
