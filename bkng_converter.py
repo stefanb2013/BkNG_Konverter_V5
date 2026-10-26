@@ -22,6 +22,7 @@ instead: its customer-specific parts (declarations, tasks, libraries with source
 code, users and roles, OPC UA variables and the customer visu with its bindings)
 are taken over into the BkNG base project of Automation Studio 6, whose examples
 are removed.  The target is always an Automation Studio 6 project.
+
 """
 
 from __future__ import annotations
