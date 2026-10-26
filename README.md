@@ -14,15 +14,69 @@ Anleitung für Anwender: [ANLEITUNG.md](ANLEITUNG.md)
 > **Hinweis:** Dieses Projekt wurde mit Agentic Engineering erstellt, wird nicht
 > supportet und erhebt keinen Anspruch auf Vollständigkeit. Siehe
 > [Haftungsausschluss](#haftungsausschluss).
+>
+> **Hinweis:** Eine Übersicht der verwendeten Komponenten und ihrer Lizenzen finden Sie
+> im Abschnitt [Lizenzen und Bibliotheken](#lizenzen-und-bibliotheken).
 
 ### Voraussetzungen
 
 - Windows
+
 - Python 3.10 oder neuer (getestet mit 3.14) mit tkinter, wie es der Installer von
   python.org mitbringt. Der Konverter nutzt nur die Standardbibliothek von Python;
   mit pip ist nichts zu installieren.
-- Optional: Automation Studio 6, um alte Kontaktpläne automatisch zu konvertieren
-  (siehe unten).
+- Für die Konvertierung alter Kontaktpläne: Automation Studio 6 (siehe
+  [Kontaktpläne](#kontaktpläne)).
+
+#### Schritt für Schritt: Python installieren und den Konverter starten
+
+**1. Python installieren** (nur einmal nötig)
+
+1. Im Browser <https://www.python.org/downloads/> öffnen und auf den gelben Knopf
+   **„Download Python 3.x“** klicken.
+2. Die heruntergeladene Datei (z. B. `python-3.14.x-amd64.exe`) per Doppelklick starten.
+3. **Wichtig:** Im ersten Fenster ganz unten den Haken bei
+   **„Add python.exe to PATH“** setzen.
+4. Auf **„Install Now“** klicken und warten, bis „Setup was successful“ erscheint.
+   Dann **„Close“**.
+
+**2. Prüfen, ob Python funktioniert**
+
+1. Windows-Taste drücken, `cmd` eintippen und die **Eingabeaufforderung** öffnen.
+2. `python --version` eintippen und Enter drücken.
+3. Erscheint z. B. `Python 3.14.0`, ist alles in Ordnung. Das Fenster kann zu.
+
+**3. Den Konverter holen**
+
+1. Auf der Seite des Repositorys auf den grünen Knopf **„Code“** und dann auf
+   **„Download ZIP“** klicken (oder die ZIP-Datei nehmen, die man bekommen hat).
+2. Die ZIP-Datei mit der rechten Maustaste anklicken → **„Alle extrahieren…“** und
+   einen Ordner wählen, z. B. `C:\BkNG-Konverter`.
+
+**4. Den Konverter starten**
+
+1. Im Explorer den Ordner mit `bkng_converter.py` öffnen.
+2. Oben in die Adressleiste klicken, `cmd` eintippen und Enter drücken. Es öffnet sich
+   eine Eingabeaufforderung direkt in diesem Ordner.
+3. `python bkng_converter.py` eintippen und Enter drücken. Das Fenster des Konverters
+   erscheint.
+4. Das schwarze Fenster der Eingabeaufforderung offen lassen, solange der Konverter
+   läuft (es schließt sich nicht von selbst; danach einfach schließen).
+
+Tipp: Für einen schnellen Start eine Verknüpfung anlegen: `bkng_converter.py` mit der
+rechten Maustaste anklicken → (unter Windows 11 zuerst **„Weitere Optionen anzeigen“**)
+→ **„Senden an“** →
+**„Desktop (Verknüpfung erstellen)“**. Ein Doppelklick darauf startet den Konverter
+(falls Windows fragt, womit die Datei geöffnet werden soll: **„Python“** wählen).
+
+**Wenn etwas nicht klappt**
+
+| Meldung / Verhalten | Lösung |
+|---|---|
+| `"python" wird nicht als interner oder externer Befehl … erkannt` | Bei der Installation fehlte der Haken „Add python.exe to PATH“. Statt `python` den Befehl `py` verwenden (`py bkng_converter.py`) oder den Python-Installer erneut starten → **„Modify“** → weiter → Haken **„Add Python to environment variables“** setzen → **„Install“**. |
+| Statt Python öffnet sich der **Microsoft Store** | Windows-Einstellungen → **Apps** → **Erweiterte App-Einstellungen** → **App-Ausführungsaliase**: die Schalter für `python.exe` und `python3.exe` ausschalten. Oder `py` statt `python` verwenden. |
+| `ModuleNotFoundError: No module named 'tkinter'` | Python-Installer erneut starten → **„Modify“** → Haken **„tcl/tk and IDLE“** setzen → weiter → **„Install“**. |
+| `can't open file … bkng_converter.py` | Die Eingabeaufforderung ist im falschen Ordner. Wie in Schritt 4 über die Adressleiste des richtigen Ordners öffnen. |
 
 ### Start
 
@@ -122,26 +176,33 @@ braucht keine `dplist.dat`, `gruppen.dat` oder VC4-Visu. Sie läuft so ab:
 
 ### Kontaktpläne
 
-Mit der Option *Alte Kontaktpläne mit Automation Studio 6 konvertieren* (standardmäßig
-aus; beim Anhaken erscheint ein Hinweis, dass AS6 installiert sein muss) werden
-Kontaktpläne im Format von AS < 6 in beiden Betriebsarten mit der Konvertierung des
-installierten Automation Studio 6 in das AS6-Format gebracht, also mit derselben, die
-sein Editor beim Öffnen und Speichern einer solchen Datei nutzt. Das Hilfsprogramm `as6_ladder/LdConvert.cs` ruft sie auf; der Konverter übersetzt es
-beim ersten Einsatz mit dem C#-Compiler des .NET Framework und legt es unter
-`%LOCALAPPDATA%\BkNG-Konverter` ab. Vorher ergänzt er, was der AS6-Editor aus den
-Bibliotheken nehmen würde: den Typ jedes Bausteinteils, die Namen erweiterbarer
-Eingänge (`IN1`, `IN2`, …) und ein leeres Netzwerk in einem leeren Plan; den
-Bausteintyp ergänzt er auch ohne die Option. Ohne die Option, ohne Automation Studio 6
-(oder wenn die Umgebungsvariable `BKNG_AS6_BIN` leer gesetzt ist) bleiben die Dateien
-im alten Format, und der Bericht weist darauf hin. Über die
-Umgebungsvariable lässt sich auch der `Bin-de`-Ordner eines bestimmten AS6 vorgeben.
+Kontaktpläne im Format von AS < 6 baut Automation Studio 6 nicht (Build-Fehler 1113).
+Es konvertiert sie aber alle selbst, wenn es ein Projekt von Automation Studio 4 öffnet
+(dokumentiertes Projekt-Upgrade). Darauf baut der letzte Schritt des Konverters auf (in
+beiden Betriebsarten):
+
+1. Er legt neben dem Zielprojekt ein minimales Projekt für Automation Studio 4.12 an
+   (`<Zielprojekt>_KOP_Migration`: Projektdatei, Packages, Hardware nur mit einer CPU;
+   vom Konverter selbst geschrieben, ohne Dateien von B&R) und kopiert die Programme mit
+   den alten Kontaktplänen hinein.
+2. Ein Dialog bittet, das Hilfsprojekt in Automation Studio 6 zu öffnen (auf Wunsch
+   startet der Konverter AS6 damit) und das Upgrade zu bestätigen.
+3. Mit „Fertig“ schließt er das Automation Studio, in dem das Hilfsprojekt geöffnet ist
+   (erkannt am Fenstertitel; schließt es sich nicht innerhalb von 30 Sekunden, wird es
+   beendet), übernimmt die konvertierten Pläne in das Zielprojekt und löscht das
+   Hilfsprojekt. Pläne, die nicht konvertiert wurden oder bei „Überspringen“, bleiben im
+   alten Format; der Bericht nennt sie zum einmaligen Öffnen und Speichern in AS6.
+
+Vorher ergänzt der Konverter in jedem Teil eines Bausteins den Bausteintyp, den AS6
+beim Konvertieren aus dem Kopf des Bausteins übernimmt (das alte Format 1.0 hat ihn nur
+im oberen Teil).
 
 ### Offene Punkte im Bericht
 
 Der Bericht nennt als offene Punkte, was der Konverter nicht selbst erledigen kann:
 
-- Kontaktpläne, die nicht konvertiert werden konnten, einmal in AS6 öffnen und
-  speichern (sonst Build-Fehler 1113).
+- Kontaktpläne, die im alten Format geblieben sind, einmal in AS6 öffnen und speichern
+  (sonst Build-Fehler 1113).
 - Verschlüsselte Bibliotheksquellen entschlüsseln.
 - Fehlende B&R-Bibliotheken ergänzen; in AS6 abgekündigte Bibliotheken und Funktionen
   ersetzen.
@@ -155,6 +216,10 @@ Der Bericht nennt als offene Punkte, was der Konverter nicht selbst erledigen ka
   Quellcode, Tests und Dokumentation sind überwiegend von einem KI-Agenten (Claude
   Code von Anthropic) unter Anleitung und Prüfung eines Menschen geschrieben worden.
   Es kann trotz dieser Prüfung Fehler enthalten.
+- **Kein Produkt:** Weder der Autor noch der Eigentümer des Repositorys verkaufen
+  Inhalte dieses Repositorys als Produkt. Für die Codebasis wird kein kommerzieller
+  Support angeboten. Die Inhalte dieses Repositorys werden nicht als kommerzielles
+  Softwareprodukt gepflegt und sind nicht als solches zu verstehen.
 - **Kein Support:** Das Programm wird nicht supportet. Es gibt keine Wartung, keine
   Fehlerbehebung auf Anfrage und keine zugesicherten Antwortzeiten.
 - **Keine Vollständigkeit:** Es besteht kein Anspruch auf Vollständigkeit oder
@@ -167,40 +232,31 @@ Der Bericht nennt als offene Punkte, was der Konverter nicht selbst erledigen ka
   fachkundig zu prüfen, zu übersetzen und zu testen. Die Verantwortung für den Einsatz
   liegt allein beim Anwender.
 - **Marken:** B&R, Automation Studio und mappView sind Marken der B&R Industrial
-  Automation GmbH, Windows und .NET Marken der Microsoft Corporation, Python eine
+  Automation GmbH, Windows eine Marke der Microsoft Corporation, Python eine
   Marke der Python Software Foundation. Dieses Projekt steht in keiner Verbindung zu
   diesen Unternehmen und wird von ihnen weder unterstützt noch geprüft.
 
 ### Lizenzen und Bibliotheken
 
 Der Konverter selbst steht unter der **MIT-Lizenz** (siehe [LICENSE](LICENSE)). Das
-Repository enthält nur Quellcode; Python, Windows und Automation Studio werden nicht
+Repository enthält nur Quellcode und das Programmsymbol; Python und Windows werden nicht
 mitgeliefert, sondern beim Anwender vorausgesetzt. Für sie gelten ihre eigenen
 Lizenzen:
 
 | Komponente | Verwendung | Lizenz | Mitgeliefert |
 |---|---|---|---|
-| BkNG-Konverter (`bkng_converter.py`, `as6_ladder/LdConvert.cs`) | das Programm selbst | MIT | ja |
+| BkNG-Konverter (`bkng_converter.py`) | das Programm selbst | MIT | ja |
+| Programmsymbol (`BkNgKonvIcon.ico`) | Symbol des Programmfensters, eigene Erstellung | MIT | ja |
 | Python 3 mit Standardbibliothek | Laufzeitumgebung | Python Software Foundation License v2 | nein |
 | Tcl/Tk (über `tkinter`, Teil der Python-Installation) | Oberfläche | Tcl/Tk-Lizenz (BSD-artig) | nein |
-| Weitere Bestandteile der Python-Installation, z. B. Expat (XML), zlib (ZIP), OpenSSL (`hashlib`) | Standardbibliothek | MIT, zlib-Lizenz, Apache 2.0 | nein |
-| .NET Framework 4.x mit C#-Compiler `csc.exe` | übersetzt und führt das Hilfsprogramm für die Kontaktplan-Konvertierung aus (optional) | Microsoft-Lizenz (Bestandteil von Windows) | nein |
-| Automation Studio 6: `BR.AS.Iec.GraphicalEditor.Data.dll`, `BR.AS.Iec.GraphicalEditor.CodeAnalysis.dll` und deren Abhängigkeiten | Kontaktplan-Konvertierung (optional), zur Laufzeit aus der Installation des Anwenders geladen | proprietär, B&R Industrial Automation GmbH | nein |
+| Weitere Bestandteile der Python-Installation, z. B. Expat (XML), zlib (ZIP), libffi (`ctypes`) | Standardbibliothek | MIT, zlib-Lizenz | nein |
+| Automation Studio 6 | wird auf Wunsch gestartet, um alte Kontaktpläne per Projekt-Upgrade zu konvertieren | proprietär, B&R Industrial Automation GmbH | nein |
 
 **Verwendete Python-Module** (alle aus der Standardbibliothek, keine pip-Pakete):
 `tkinter` (`ttk`, `filedialog`, `messagebox`, `scrolledtext`), `pathlib`, `os`,
-`shutil`, `tempfile`, `zipfile`, `subprocess`, `re`, `xml.etree.ElementTree`,
-`threading`, `queue`, `hashlib`, `uuid`, `datetime`, `dataclasses`, `collections`,
+`shutil`, `stat`, `subprocess`, `tempfile`, `zipfile`, `re`, `xml.etree.ElementTree`,
+`threading`, `queue`, `ctypes`, `uuid`, `datetime`, `dataclasses`, `collections`,
 `typing`.
-
-**Verwendete .NET-Namensräume** im Hilfsprogramm `LdConvert.cs`: `System`,
-`System.IO`, `System.Linq`, `System.Reflection`, `System.Text`.
-
-**Hinweis zu Automation Studio:** Die Kontaktplan-Konvertierung ruft interne, nicht
-dokumentierte Klassen von Automation Studio 6 auf. Sie ist nur mit einer gültig
-lizenzierten Installation nutzbar; ob ihr Einsatz mit den Lizenzbedingungen von B&R
-vereinbar ist, muss der Anwender selbst prüfen. Die Funktion ist eine Option, die
-standardmäßig ausgeschaltet ist.
 
 ---
 
@@ -213,6 +269,9 @@ User guide (German): [ANLEITUNG.md](ANLEITUNG.md)
 
 > **Notice:** This project was created with agentic engineering, is not supported and
 > makes no claim to completeness. See [Disclaimer](#disclaimer).
+>
+> **Notice:** For an overview of the components used and their licenses, see
+> [Licenses and libraries](#licenses-and-libraries).
 
 ### Requirements
 
@@ -220,8 +279,57 @@ User guide (German): [ANLEITUNG.md](ANLEITUNG.md)
 - Python 3.10 or newer (tested with 3.14) including tkinter, as installed by the
   installer from python.org. The converter uses only Python's standard library;
   there is nothing to install with pip.
-- Optional: Automation Studio 6, to convert old Ladder Diagrams automatically
-  (see below).
+- For the conversion of old Ladder Diagrams: Automation Studio 6 (see
+  [Ladder Diagrams](#ladder-diagrams)).
+
+#### Step by step: install Python and start the converter
+
+**1. Install Python** (needed only once)
+
+1. Open <https://www.python.org/downloads/> in the browser and click the yellow button
+   **"Download Python 3.x"**.
+2. Start the downloaded file (e.g. `python-3.14.x-amd64.exe`) with a double-click.
+3. **Important:** In the first window, tick **"Add python.exe to PATH"** at the very
+   bottom.
+4. Click **"Install Now"** and wait until "Setup was successful" appears. Then
+   **"Close"**.
+
+**2. Check that Python works**
+
+1. Press the Windows key, type `cmd` and open the **Command Prompt**.
+2. Type `python --version` and press Enter.
+3. If e.g. `Python 3.14.0` appears, everything is fine. The window can be closed.
+
+**3. Get the converter**
+
+1. On the page of the repository, click the green button **"Code"** and then
+   **"Download ZIP"** (or take the ZIP file you were given).
+2. Right-click the ZIP file → **"Extract All…"** and choose a folder, e.g.
+   `C:\BkNG-Konverter`.
+
+**4. Start the converter**
+
+1. Open the folder containing `bkng_converter.py` in Explorer.
+2. Click into the address bar at the top, type `cmd` and press Enter. A Command Prompt
+   opens directly in this folder.
+3. Type `python bkng_converter.py` and press Enter. The window of the converter appears.
+4. Leave the black Command Prompt window open while the converter is running (it does
+   not close by itself; just close it afterwards).
+
+Tip: For a quick start, create a shortcut: right-click `bkng_converter.py` →
+(on Windows 11 first **"Show more options"**) → **"Send to"** → **"Desktop (create
+shortcut)"**. A
+double-click on it starts the converter (if Windows asks which program to open the
+file with: choose **"Python"**).
+
+**If something does not work**
+
+| Message / behaviour | Solution |
+|---|---|
+| `'python' is not recognized as an internal or external command …` | The tick "Add python.exe to PATH" was missing during installation. Use `py` instead of `python` (`py bkng_converter.py`), or start the Python installer again → **"Modify"** → next → tick **"Add Python to environment variables"** → **"Install"**. |
+| The **Microsoft Store** opens instead of Python | Windows Settings → **Apps** → **Advanced app settings** → **App execution aliases**: switch off `python.exe` and `python3.exe`. Or use `py` instead of `python`. |
+| `ModuleNotFoundError: No module named 'tkinter'` | Start the Python installer again → **"Modify"** → tick **"tcl/tk and IDLE"** → next → **"Install"**. |
+| `can't open file … bkng_converter.py` | The Command Prompt is in the wrong folder. Open it via the address bar of the right folder as in step 4. |
 
 ### Running
 
@@ -317,27 +425,33 @@ Migration needs no `dplist.dat`, `gruppen.dat` or VC4 visu. It works as follows:
 
 ### Ladder Diagrams
 
-With the option *Convert old Ladder Diagrams into the AS6 format with Automation
-Studio 6* (off by default; when it is ticked, a dialog says that AS6 must be
-installed), Ladder Diagram files in the format of AS < 6 (both modes) are converted
-into the format of AS6 with the conversion of the installed Automation Studio 6, the
-same one its editor uses when such a file is opened and saved. The helper program
-`as6_ladder/LdConvert.cs` calls it; the converter compiles it on first use with the
-C# compiler of the .NET Framework and keeps it in
-`%LOCALAPPDATA%\BkNG-Konverter`. Before, it completes what the AS6 editor would take
-from the libraries: the type of every part of a block, the names of extensible
-inputs (`IN1`, `IN2`, ...) and an empty network in an empty diagram; the block types
-are completed even without the option. Without the option, without Automation
-Studio 6 (or with the environment variable `BKNG_AS6_BIN` set to an empty value) the
-files stay in the old format and the report says so. The
-environment variable can also name the `Bin-de` folder of a particular AS6.
+Automation Studio 6 does not build Ladder Diagram files in the format of AS < 6 (build
+error 1113). It converts all of them itself, however, when it opens a project of
+Automation Studio 4 (documented project upgrade). The last step of the converter (both
+modes) relies on this:
+
+1. It creates a minimal project of Automation Studio 4.12 next to the target project
+   (`<target project>_KOP_Migration`: project file, packages, hardware with one CPU only;
+   written by the converter itself, without files of B&R) and copies the programs with
+   the old Ladder Diagrams into it.
+2. A dialog asks to open the helper project in Automation Studio 6 (on request the
+   converter starts AS6 with it) and to confirm the upgrade.
+3. With "Done" it closes the Automation Studio that has the helper project open
+   (recognized by its window title; if it does not close within 30 seconds, it is ended),
+   takes the converted diagrams over into the target project and deletes the helper
+   project. Diagrams that were not converted, or after "Skip", stay in the old
+   format; the report lists them to be opened and saved once in AS6.
+
+Before, the converter completes the block type in every part of a block, which AS6
+takes from the header of the block when it converts the file (the old format 1.0 has it
+in the top part only).
 
 ### Open items in the report
 
 The report lists as open items what the converter cannot do itself:
 
-- Ladder Diagram files that could not be converted must be opened and saved once
-  in AS6 (otherwise build error 1113).
+- Ladder Diagram files that stayed in the old format must be opened and saved once in
+  AS6 (otherwise build error 1113).
 - Encrypted library sources must be decrypted.
 - Missing B&R libraries must be added; libraries and functions discontinued in AS6
   must be replaced.
@@ -351,6 +465,7 @@ The report lists as open items what the converter cannot do itself:
   source code, tests and documentation were mostly written by an AI agent (Claude
   Code by Anthropic), directed and reviewed by a human. Despite this review it may
   contain errors.
+- **No product:** Neither the author nor the repository owner do sell anything out of this content as a product. A commercial support service for the codebase is not operated. The content of this repository is not maintained as a commercial software product and should not be interpreted as such.
 - **No support:** The program is not supported. There is no maintenance, no bug
   fixing on request and no guaranteed response time.
 - **No claim to completeness:** No claim is made to completeness or correctness,
@@ -362,35 +477,27 @@ The report lists as open items what the converter cannot do itself:
   built and tested by a qualified person before it is used on a plant. The user
   alone is responsible for its use.
 - **Trademarks:** B&R, Automation Studio and mappView are trademarks of B&R
-  Industrial Automation GmbH, Windows and .NET trademarks of Microsoft Corporation,
+  Industrial Automation GmbH, Windows a trademark of Microsoft Corporation,
   Python a trademark of the Python Software Foundation. This project is not
   affiliated with, endorsed or reviewed by these companies.
 
 ### Licenses and libraries
 
 The converter itself is licensed under the **MIT License** (see [LICENSE](LICENSE)).
-The repository contains source code only; Python, Windows and Automation Studio are
+The repository contains source code and the program icon only; Python and Windows are
 not included but required on the user's computer. Their own licenses apply:
 
 | Component | Used for | License | Included |
 |---|---|---|---|
-| BkNG Converter (`bkng_converter.py`, `as6_ladder/LdConvert.cs`) | the program itself | MIT | yes |
+| BkNG Converter (`bkng_converter.py`) | the program itself | MIT | yes |
+| Program icon (`BkNgKonvIcon.ico`) | icon of the program window, own work | MIT | yes |
 | Python 3 with its standard library | runtime | Python Software Foundation License v2 | no |
 | Tcl/Tk (via `tkinter`, part of the Python installation) | user interface | Tcl/Tk license (BSD-style) | no |
-| Further parts of the Python installation, e.g. Expat (XML), zlib (ZIP), OpenSSL (`hashlib`) | standard library | MIT, zlib License, Apache 2.0 | no |
-| .NET Framework 4.x with the C# compiler `csc.exe` | compiles and runs the helper program of the Ladder Diagram conversion (optional) | Microsoft license (part of Windows) | no |
-| Automation Studio 6: `BR.AS.Iec.GraphicalEditor.Data.dll`, `BR.AS.Iec.GraphicalEditor.CodeAnalysis.dll` and their dependencies | Ladder Diagram conversion (optional), loaded at runtime from the user's installation | proprietary, B&R Industrial Automation GmbH | no |
+| Further parts of the Python installation, e.g. Expat (XML), zlib (ZIP), libffi (`ctypes`) | standard library | MIT, zlib License | no |
+| Automation Studio 6 | started on request to convert old Ladder Diagrams by its project upgrade | proprietary, B&R Industrial Automation GmbH | no |
 
 **Python modules used** (all from the standard library, no pip packages):
 `tkinter` (`ttk`, `filedialog`, `messagebox`, `scrolledtext`), `pathlib`, `os`,
-`shutil`, `tempfile`, `zipfile`, `subprocess`, `re`, `xml.etree.ElementTree`,
-`threading`, `queue`, `hashlib`, `uuid`, `datetime`, `dataclasses`, `collections`,
+`shutil`, `stat`, `subprocess`, `tempfile`, `zipfile`, `re`, `xml.etree.ElementTree`,
+`threading`, `queue`, `ctypes`, `uuid`, `datetime`, `dataclasses`, `collections`,
 `typing`.
-
-**.NET namespaces used** by the helper program `LdConvert.cs`: `System`,
-`System.IO`, `System.Linq`, `System.Reflection`, `System.Text`.
-
-**Note on Automation Studio:** The Ladder Diagram conversion calls internal,
-undocumented classes of Automation Studio 6. It can only be used with a validly
-licensed installation; whether its use complies with the license terms of B&R must
-be checked by the user. The function is an option that is switched off by default.

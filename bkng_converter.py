@@ -26,11 +26,11 @@ are removed.  The target is always an Automation Studio 6 project.
 
 from __future__ import annotations
 
-import hashlib
 import os
 import queue
 import re
 import shutil
+import stat
 import subprocess
 import tempfile
 import threading
@@ -45,9 +45,10 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 from typing import Callable, Iterable
 
-RESOURCE_DIR = Path(__file__).parent
-ICON_PATH = RESOURCE_DIR / "assets" / "icon.ico"
-
+# Icon with its own drawing for 16, 24, 32, 48 and 256 px; Windows picks the size for each place.
+ICON_PATH = Path(__file__).parent / "BkNgKonvIcon.ico"
+# Colours of the convert button: the orange of the icon, darker while pressed, grey while disabled.
+CONVERT_COLOR, CONVERT_COLOR_ACTIVE, CONVERT_COLOR_DISABLED = "#ff7f27", "#e0661a", "#b4b4b4"
 
 REQUIRED_OLD_FILES = ("dplist.dat", "gruppen.dat", "global.var")
 # Files that identify the old project as a Bk2000 project.
@@ -112,7 +113,6 @@ class LadderCopyResult:
     packages_updated: list[Path]
     deployed: list[tuple[str, str]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
-    ladder_details: str = ""  # conversion of the old Ladder Diagrams into the format of AS6
 
 
 @dataclass
@@ -242,13 +242,6 @@ TEXTS: dict[str, dict[str, str]] = {
         "warn_task_name_in_use": "A different task named '{task}' already exists in the new Cpu.sw; it was not added.",
         "warn_task_class_missing": "Task class '{task_class}' does not exist in the new Cpu.sw; '{task}' was not added.",
         "ladder_deployed": "Added {count} task(s) to their task class in Cpu.sw.\n",
-        "ladder_converted": "{count} Ladder Diagram file(s) converted into the format of Automation Studio 6 "
-                            "(working version {version}).\n",
-        "ladder_no_as6": "No Automation Studio 6 found; the Ladder Diagrams could not be converted automatically.",
-        "ladder_as6_failed": "The Ladder Diagrams could not be converted with Automation Studio 6: {error}",
-        "ladder_file_failed": "{file}: conversion into the format of Automation Studio 6 failed ({error}).",
-        "ladder_no_compiler": "C# compiler of the .NET Framework not found ({path}).",
-        "ladder_compile_failed": "The helper program for the Ladder Diagram conversion could not be compiled: {error}",
         "ust_written": "UST name '{name}' written to UST_Name in:\n{path}\n",
         "warn_no_visu_variables": "UST name not written: no VisuTask/Variables.var found below {root}.",
         "warn_ust_name_not_written": "UST name '{name}' was not written: no Variables.var selected.",
@@ -376,16 +369,6 @@ TEXTS: dict[str, dict[str, str]] = {
         "migrate_users": "Take over users and roles (passwords must be entered again)",
         "migrate_opcua": "Enable the Bk datapoints and the further OPC UA variables of the old project in OpcUaBkV.uad",
         "migrate_visu": "Take over the customer visu (BkVisu pages, bindings, event bindings, media, texts)",
-        "convert_ladder_as6": "Convert old Ladder Diagrams into the AS6 format with Automation Studio 6 "
-                              "(Automation Studio 6 must be installed)",
-        "ladder_as6_title": "Convert Ladder Diagrams with Automation Studio 6",
-        "ladder_as6_info": "This option requires Automation Studio 6 to be installed on this computer. The converter "
-                           "uses its Ladder Diagram conversion (internal functions of Automation Studio); whether "
-                           "this complies with the license terms of B&R must be checked by the user.\n\n"
-                           "Without Automation Studio 6 the Ladder Diagrams stay in the old format; the report "
-                           "lists them to be opened and saved once in Automation Studio 6.\n\n{status}",
-        "ladder_as6_found": "Automation Studio 6 found:\n{path}",
-        "ladder_as6_not_found": "Automation Studio 6 was not found on this computer.",
         "step_migration_analysis": "Analysis of the BkNG project",
         "step_cleanup": "Remove examples and test pages of the base project",
         "step_global_migration": "Global declarations (Global.var, Global.typ)",
@@ -394,6 +377,35 @@ TEXTS: dict[str, dict[str, str]] = {
         "step_libraries": "Libraries",
         "step_users": "Users and roles",
         "step_visu_migration": "Customer visu (mappView)",
+        "step_ladder_migration": "Ladder Diagrams in the format of Automation Studio 6",
+        "ladder_migration_none": "No Ladder Diagram in the format of Automation Studio < 6.\n",
+        "ladder_migration_done": "{count} Ladder Diagram file(s) converted into the format of Automation Studio 6 "
+                                 "by its project upgrade and taken over.\n",
+        "ladder_migration_skipped": "Conversion of the Ladder Diagrams skipped.\n",
+        "ladder_migration_kept": "The helper project with the files not converted was kept:\n{path}\n",
+        "ladder_helper_exists": "The folder {path} exists already and is no helper project of the converter; "
+                                "rename or delete it.",
+        "ladder_dialog_title": "Convert Ladder Diagrams with Automation Studio 6",
+        "ladder_dialog_text": "The project contains {count} Ladder Diagram file(s) in the format of Automation Studio "
+                              "< 6. Automation Studio 6 converts them automatically when it opens a project of "
+                              "Automation Studio 4. The converter has created such a helper project:\n{path}\n\n"
+                              "1. Click \"Start Automation Studio 6\" (or open the helper project in Automation "
+                              "Studio 6 yourself).\n"
+                              "2. Confirm the project upgrade and wait until the project is open. Do not open any "
+                              "file and do not build.\n"
+                              "3. Click \"Done\": Automation Studio with the helper project is closed, the converted "
+                              "Ladder Diagrams are taken over into the project and the helper project is deleted.\n\n"
+                              "With \"Skip\" the Ladder Diagrams stay in the old format; the report lists them to be "
+                              "opened and saved once in Automation Studio 6.",
+        "ladder_dialog_start": "Start Automation Studio 6",
+        "ladder_dialog_done": "Done",
+        "ladder_dialog_skip": "Skip",
+        "ladder_dialog_no_as6": "Automation Studio 6 was not found. Please open the helper project in Automation "
+                                "Studio 6 yourself:\n{path}",
+        "ladder_dialog_incomplete": "{remaining} of {count} Ladder Diagram file(s) were not converted. Was the project "
+                                    "upgrade of Automation Studio 6 confirmed and finished?\n\nContinue anyway? The "
+                                    "files not converted stay in the old format; the helper project is kept for "
+                                    "them.",
         "migration_analysis": "BkNG project of Automation Studio {version}, configuration {old}; "
                               "target configuration: {new}.\n",
         "cleanup_summary": "Removed pages: {pages}\nRemoved programs: {programs}\n"
@@ -568,15 +580,6 @@ TEXTS: dict[str, dict[str, str]] = {
         "warn_task_name_in_use": "In der neuen Cpu.sw gibt es bereits einen anderen Task namens '{task}'; er wurde nicht eingetragen.",
         "warn_task_class_missing": "Taskklasse '{task_class}' existiert in der neuen Cpu.sw nicht; '{task}' wurde nicht eingetragen.",
         "ladder_deployed": "{count} Task(s) in ihre Taskklasse in der Cpu.sw eingetragen.\n",
-        "ladder_converted": "{count} Kontaktplan-Datei(en) in das Format von Automation Studio 6 konvertiert "
-                            "(Working Version {version}).\n",
-        "ladder_no_as6": "Kein Automation Studio 6 gefunden; die Kontaktpläne konnten nicht automatisch konvertiert "
-                         "werden.",
-        "ladder_as6_failed": "Die Kontaktpläne konnten nicht mit Automation Studio 6 konvertiert werden: {error}",
-        "ladder_file_failed": "{file}: Konvertierung in das Format von Automation Studio 6 fehlgeschlagen ({error}).",
-        "ladder_no_compiler": "C#-Compiler des .NET Framework nicht gefunden ({path}).",
-        "ladder_compile_failed": "Das Hilfsprogramm für die Kontaktplan-Konvertierung konnte nicht übersetzt werden: "
-                                 "{error}",
         "ust_written": "UST-Name '{name}' auf UST_Name geschrieben in:\n{path}\n",
         "warn_no_visu_variables": "UST-Name nicht geschrieben: keine VisuTask/Variables.var unter {root} gefunden.",
         "warn_ust_name_not_written": "UST-Name '{name}' wurde nicht geschrieben: keine Variables.var ausgewählt.",
@@ -705,16 +708,6 @@ TEXTS: dict[str, dict[str, str]] = {
         "migrate_users": "Benutzer und Rollen übernehmen (Passwörter müssen neu eingegeben werden)",
         "migrate_opcua": "Bk-Datenpunkte und die weiteren OPC-UA-Variablen des alten Projekts in OpcUaBkV.uad freigeben",
         "migrate_visu": "Kundenvisu übernehmen (BkVisu-Seiten, Bindings, Event-Bindings, Medien, Texte)",
-        "convert_ladder_as6": "Alte Kontaktpläne mit Automation Studio 6 in das AS6-Format konvertieren "
-                              "(Automation Studio 6 muss installiert sein)",
-        "ladder_as6_title": "Kontaktpläne mit Automation Studio 6 konvertieren",
-        "ladder_as6_info": "Für diese Option muss Automation Studio 6 auf diesem Rechner installiert sein. Der "
-                           "Konverter nutzt dessen Kontaktplan-Konvertierung (interne Funktionen von Automation "
-                           "Studio); ob das mit den Lizenzbedingungen von B&R vereinbar ist, muss der Anwender selbst "
-                           "prüfen.\n\nOhne Automation Studio 6 bleiben die Kontaktpläne im alten Format; der Bericht "
-                           "nennt sie dann zum einmaligen Öffnen und Speichern in Automation Studio 6.\n\n{status}",
-        "ladder_as6_found": "Automation Studio 6 gefunden:\n{path}",
-        "ladder_as6_not_found": "Automation Studio 6 wurde auf diesem Rechner nicht gefunden.",
         "step_migration_analysis": "Analyse des BkNG-Projekts",
         "step_cleanup": "Beispiele und Testseiten des Basisprojekts entfernen",
         "step_global_migration": "Globale Deklarationen (Global.var, Global.typ)",
@@ -723,6 +716,36 @@ TEXTS: dict[str, dict[str, str]] = {
         "step_libraries": "Bibliotheken",
         "step_users": "Benutzer und Rollen",
         "step_visu_migration": "Kundenvisu (mappView)",
+        "step_ladder_migration": "Kontaktpläne in das Format von Automation Studio 6",
+        "ladder_migration_none": "Keine Kontaktpläne im Format von Automation Studio < 6.\n",
+        "ladder_migration_done": "{count} Kontaktplan-Datei(en) durch das Projekt-Upgrade von Automation Studio 6 in "
+                                 "dessen Format konvertiert und übernommen.\n",
+        "ladder_migration_skipped": "Konvertierung der Kontaktpläne übersprungen.\n",
+        "ladder_migration_kept": "Das Hilfsprojekt mit den nicht konvertierten Dateien wurde behalten:\n{path}\n",
+        "ladder_helper_exists": "Der Ordner {path} existiert bereits und ist kein Hilfsprojekt des Konverters; "
+                                "bitte umbenennen oder löschen.",
+        "ladder_dialog_title": "Kontaktpläne mit Automation Studio 6 konvertieren",
+        "ladder_dialog_text": "Das Projekt enthält {count} Kontaktplan-Datei(en) im Format von Automation Studio < 6. "
+                              "Automation Studio 6 konvertiert sie automatisch, wenn es ein Projekt von Automation "
+                              "Studio 4 öffnet. Der Konverter hat dafür ein solches Hilfsprojekt angelegt:\n{path}\n\n"
+                              "1. Auf „Automation Studio 6 starten“ klicken (oder das Hilfsprojekt selbst in "
+                              "Automation Studio 6 öffnen).\n"
+                              "2. Das Projekt-Upgrade bestätigen und warten, bis das Projekt geöffnet ist. Keine Datei "
+                              "öffnen und nichts übersetzen.\n"
+                              "3. Auf „Fertig“ klicken: Automation Studio mit dem Hilfsprojekt wird geschlossen, die "
+                              "konvertierten Kontaktpläne werden in das Projekt übernommen und das Hilfsprojekt wird "
+                              "gelöscht.\n\n"
+                              "Mit „Überspringen“ bleiben die Kontaktpläne im alten Format; der Bericht nennt sie zum "
+                              "einmaligen Öffnen und Speichern in Automation Studio 6.",
+        "ladder_dialog_start": "Automation Studio 6 starten",
+        "ladder_dialog_done": "Fertig",
+        "ladder_dialog_skip": "Überspringen",
+        "ladder_dialog_no_as6": "Automation Studio 6 wurde nicht gefunden. Bitte das Hilfsprojekt selbst in Automation "
+                                "Studio 6 öffnen:\n{path}",
+        "ladder_dialog_incomplete": "{remaining} von {count} Kontaktplan-Datei(en) wurden nicht konvertiert. Wurde das "
+                                    "Projekt-Upgrade in Automation Studio 6 bestätigt und abgeschlossen?\n\nTrotzdem "
+                                    "fortfahren? Die nicht konvertierten Dateien bleiben im alten Format; das "
+                                    "Hilfsprojekt bleibt für sie erhalten.",
         "migration_analysis": "BkNG-Projekt von Automation Studio {version}, Konfiguration {old}; "
                               "Zielkonfiguration: {new}.\n",
         "cleanup_summary": "Entfernte Seiten: {pages}\nEntfernte Programme: {programs}\n"
@@ -1251,6 +1274,12 @@ def convert(old_root: Path, new_root: Path, chooser: FileChooser | None = None) 
             continue
         name = declaration.group("name")
         datapoint = datapoints.get(name.casefold())
+        # Variable names in Automation Studio are case-sensitive: a project may declare the datapoint
+        # AP_Temp : BkAp next to the raw value ap_Temp : INT.  A datapoint whose name differs in case
+        # only applies to a declaration of a Bk type.
+        if (datapoint is not None and datapoint.name != name
+                and not declaration.group("type").casefold().startswith("bk")):
+            datapoint = None
         if datapoint is None:
             output.append(line)
             copied += 1
@@ -1472,11 +1501,8 @@ def copy_logical_object(old_logical: Path, new_logical: Path, relative: Path, ob
     return copied, overwritten
 
 
-def copy_ladder_tasks(old_root: Path, new_root: Path, chooser: FileChooser | None = None,
-                      convert_ladder: bool = False) -> LadderCopyResult:
+def copy_ladder_tasks(old_root: Path, new_root: Path, chooser: FileChooser | None = None) -> LadderCopyResult:
     """Copy every task containing .ld files into the new project, keeping the folder structure.
-
-    With ``convert_ladder`` old Ladder Diagrams are converted with Automation Studio 6.
 
     Missing package folders are created and each parent Package.pkg is extended
     so that Automation Studio shows the copied packages and programs.  Each task
@@ -1496,12 +1522,10 @@ def copy_ladder_tasks(old_root: Path, new_root: Path, chooser: FileChooser | Non
         overwritten += replaced
     relatives = [task.relative_to(old_logical) for task in tasks]
     deployed, warnings = deploy_tasks(old_root, new_root, relatives, chooser)
-    upgrade = upgrade_old_ladder_files(old_ladder_files(new_logical / task for task in relatives),
-                                       new_logical.parent, convert_ladder)
-    ladder_details, ladder_warnings = ladder_upgrade_report(upgrade)
-    warnings += ladder_warnings
+    # Converted into the AS6 format by the last step (Ladder Diagrams); here only prepared.
+    complete_old_ladder_files(old_ladder_files(new_logical / task for task in relatives))
     warnings += discontinued_function_warnings(new_logical, (new_logical / task for task in relatives))
-    return LadderCopyResult(relatives, copied, overwritten, packages_updated, deployed, warnings, ladder_details)
+    return LadderCopyResult(relatives, copied, overwritten, packages_updated, deployed, warnings)
 
 
 SW_TASK_CLASS_RE = re.compile(r'<TaskClass\b(?P<attributes>[^>]*?)(?:/>|>(?P<body>.*?)</TaskClass>)', re.DOTALL)
@@ -3744,7 +3768,7 @@ def find_vis_file(cpu: Path, chooser: FileChooser | None) -> Path:
 
 
 def convert_user_visu(old_root: Path, new_root: Path, global_var: Path,
-                      chooser: FileChooser | None = None, convert_ladder: bool = False) -> VisuConversionResult:
+                      chooser: FileChooser | None = None) -> VisuConversionResult:
     """Convert the VC4 user visualisation (uvis) of the Bk2000 project into BkVisu mappView pages.
 
     Each user page becomes a page below Logical/mappView/Visualization/Pages/BkVisu.
@@ -3815,9 +3839,7 @@ def convert_user_visu(old_root: Path, new_root: Path, global_var: Path,
             if deployed:
                 missing = missing_task_libraries(old_root, new_root, folder, chooser)
                 warnings.extend(missing_library_warnings(missing))
-            warnings.extend(ladder_upgrade_report(
-                upgrade_old_ladder_files(old_ladder_files([new_logical / relative]), new_logical.parent,
-                                         convert_ladder))[1])
+            complete_old_ladder_files(old_ladder_files([new_logical / relative]))
             warnings.extend(discontinued_function_warnings(new_logical, [new_logical / relative]))
             new_programs[key] = new_logical / relative
             taken_over[key] = (folder.name, bool(deployed))
@@ -4322,151 +4344,200 @@ def complete_old_ladder_files(paths: Iterable[Path]) -> int:
     return count
 
 
-# --- Conversion of old Ladder Diagrams into the format of Automation Studio 6 ---
-# The conversion of Automation Studio 6 itself is used (see as6_ladder/LdConvert.cs); the helper
-# program is compiled once with the C# compiler of the .NET Framework and kept in a cache folder.
-AS6_LADDER_SOURCE = RESOURCE_DIR / "as6_ladder" / "LdConvert.cs"
-AS6_LADDER_LIBRARY = "BR.AS.Iec.GraphicalEditor.Data.dll"
-# Environment variable with the bin folder of Automation Studio 6 ("" switches the conversion off).
-AS6_BIN_VARIABLE = "BKNG_AS6_BIN"
-# Helper programs run without a console window (the converter is a windowed program).
-NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-LD_EXTENSIBLE_INPUT_RE = re.compile(r'<input name=""(?P<rest>[^>]*\bextensible="true")')
-WORKING_VERSION_RE = re.compile(r'\bWorkingVersion="(?P<version>\d+\.\d+)')
+def ladder_format_warning(paths: list[Path]) -> str:
+    """Open item for Ladder Diagram files still in the old format (open and save once in AS6)."""
+    return tr("warn_ladder_format", count=len(paths), tasks=", ".join(sorted({path.parent.name for path in paths})))
 
 
-@dataclass
-class LadderUpgradeResult:
-    converted: list[Path] = field(default_factory=list)  # now in the format of Automation Studio 6
-    remaining: list[Path] = field(default_factory=list)  # still in the old format
-    errors: list[str] = field(default_factory=list)  # why files (or all) could not be converted
-    version: str = ""
+# --- Conversion of old Ladder Diagrams by the project upgrade of Automation Studio 6 ---
+# When Automation Studio 6 opens a project of Automation Studio 4, it converts all Ladder Diagrams
+# (.ld) into its format (documented project upgrade).  The converter copies the old Ladder Diagrams
+# into a minimal AS 4.12 helper project, the user opens it once in Automation Studio 6, and the
+# converted files are copied back.  Automation Studio takes the block type from the header of a
+# block, so complete_ladder_block_types must have run before.
+LADDER_MIGRATION_SUFFIX = "_KOP_Migration"
+LADDER_MIGRATION_CPU = "X20CP3686X"  # any CPU supported by Automation Studio 4.12 and 6
+# The helper project, written by the converter: {name} is the project name, {cpu} the CPU.
+LADDER_MIGRATION_SKELETON = {
+    "{name}.apj": '<?xml version="1.0" encoding="utf-8"?>\n<?AutomationStudio Version="4.12.9.18 SP" '
+                  'WorkingVersion="4.12"?>\n<Project Version="1.00.0" Edition="Standard" EditionComment="Standard" '
+                  'xmlns="http://br-automation.co.at/AS/Project">\n</Project>',
+    "Logical/Package.pkg": '<?xml version="1.0" encoding="utf-8"?>\n<?AutomationStudio FileVersion="4.9"?>\n'
+                           '<Package Version="1.00.0" xmlns="http://br-automation.co.at/AS/Package">\n  <Objects>\n'
+                           "  </Objects>\n</Package>",
+    "Physical/Physical.pkg": '<?xml version="1.0" encoding="utf-8"?>\n<?AutomationStudio FileVersion="4.9"?>\n'
+                             '<Physical xmlns="http://br-automation.co.at/AS/Physical">\n  <Objects>\n'
+                             '    <Object Type="Configuration">Config1</Object>\n  </Objects>\n</Physical>',
+    "Physical/Config1/Config.pkg": '<?xml version="1.0" encoding="utf-8"?>\n<?AutomationStudio FileVersion="4.9"?>\n'
+                                   '<Configuration xmlns="http://br-automation.co.at/AS/Configuration">\n  <Objects>\n'
+                                   '    <Object Type="File">Hardware.hw</Object>\n'
+                                   '    <Object Type="Cpu">{cpu}</Object>\n  </Objects>\n</Configuration>',
+    "Physical/Config1/Hardware.hw": '<?xml version="1.0" encoding="utf-8"?>\n'
+                                    '<?AutomationStudio Version=4.12.9.18 FileVersion="4.9"?>\n'
+                                    '<Hardware xmlns="http://br-automation.co.at/AS/Hardware">\n'
+                                    '  <Module Name="{cpu}" Type="{cpu}" Version="1.8.2.0" />\n</Hardware>',
+    "Physical/Config1/{cpu}/Cpu.pkg": '<?xml version="1.0" encoding="utf-8"?>\n<?AutomationStudio FileVersion="4.9"?>\n'
+                                      '<Cpu xmlns="http://br-automation.co.at/AS/Cpu">\n  <Objects>\n'
+                                      '    <Object Type="File">Cpu.sw</Object>\n  </Objects>\n'
+                                      '  <Configuration ModuleId="{cpu}" />\n</Cpu>',
+    "Physical/Config1/{cpu}/Cpu.sw": '<?xml version="1.0" encoding="utf-8"?>\n<?AutomationStudio FileVersion="4.9"?>\n'
+                                     '<SwConfiguration CpuAddress="SL1" xmlns="http://br-automation.co.at/AS/SwConfiguration">\n'
+                                     '  <TaskClass Name="Cyclic#1" />\n</SwConfiguration>',
+}
 
 
-def find_as6_bin() -> Path | None:
-    """Return the bin folder of an installed Automation Studio 6 with the Ladder Diagram libraries."""
-    override = os.environ.get(AS6_BIN_VARIABLE)
-    if override is not None:
-        return Path(override) if override and (Path(override) / AS6_LADDER_LIBRARY).is_file() else None
-    roots = {os.environ.get("ProgramFiles(x86)"), os.environ.get("ProgramFiles")} - {None, ""}
-    libraries = sorted((path for root in roots for path in Path(root, "BRAutomation").glob(f"AS6*/Bin-*/{AS6_LADDER_LIBRARY}")),
-                       key=lambda path: str(path).casefold(), reverse=True)
-    return libraries[0].parent if libraries else None
-
-
-def ladder_converter_program() -> Path:
-    """Return the helper program LdConvert.exe, compiling it from its source if necessary."""
-    source = AS6_LADDER_SOURCE.read_bytes()
-    folder = Path(os.environ.get("LOCALAPPDATA") or tempfile.gettempdir()) / "BkNG-Konverter"
-    program = folder / f"LdConvert_{hashlib.sha1(source).hexdigest()[:12]}.exe"
-    if program.is_file():
-        return program
-    compiler = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Microsoft.NET" / "Framework" / "v4.0.30319" / "csc.exe"
-    if not compiler.is_file():
-        raise ConversionError(tr("ladder_no_compiler", path=compiler))
-    folder.mkdir(parents=True, exist_ok=True)
-    run = subprocess.run([str(compiler), "-nologo", "-platform:x86", "-optimize", f"-out:{program}", str(AS6_LADDER_SOURCE)],
-                         capture_output=True, text=True, errors="replace", creationflags=NO_WINDOW)
-    if run.returncode != 0 or not program.is_file():
-        raise ConversionError(tr("ladder_compile_failed", error=(run.stdout + run.stderr).strip()[:500]))
-    return program
-
-
-def project_working_version(project_dir: Path) -> str:
-    """Return the working version (e.g. 6.7) of the Automation Studio project in ``project_dir``."""
-    for path in sorted(project_dir.glob("*.apj")):
-        text = read_text(path)
-        if match := WORKING_VERSION_RE.search(text):
-            return match.group("version")
-        if match := AS_VERSION_RE.search(text):
-            return f"{match.group('major')}.{match.group('minor')}"
-    return f"{MIGRATION_TARGET_MAJOR}.0"
-
-
-def prepare_ladder_for_as6(text: str) -> str:
-    """Complete an old Ladder Diagram for the conversion of Automation Studio 6.
-
-    Like the editor of Automation Studio 6 (which takes the missing details from the libraries):
-    every part of a block gets its type, the unnamed extensible inputs of functions (ADD, EQ,
-    AND, ...) are named IN1, IN2, ..., and an empty diagram gets one empty network.
-    """
-    text, _ = complete_ladder_block_types(text)
-    if not LD_NETWORK_RE.search(text):
-        text = re.sub(r"(<networks\b[^>]*>)(\s*)(</networks>)",
-                      '\\1\\2\t<network label="" comment="" row="1" column="0" commented="0">\\2\t\t<row><empty/></row>'
-                      "\\2\t</network>\\2\\3", text, count=1)
-    replacements = []
-    for network in LD_NETWORK_RE.finditer(text):
-        for block in ladder_blocks(network.group(0)) or []:
-            number = 0
-            for part in block:
-                for match in LD_EXTENSIBLE_INPUT_RE.finditer(network.group(0), part.start(), part.end()):
-                    number += 1
-                    replacements.append((network.start() + match.start(), network.start() + match.end(),
-                                         f'<input name="IN{number}"{match.group("rest")}'))
-    for start, end, value in sorted(replacements, reverse=True):
-        text = text[:start] + value + text[end:]
-    return text
-
-
-def upgrade_old_ladder_files(paths: list[Path], project_dir: Path, convert: bool = True) -> LadderUpgradeResult:
-    """Convert old Ladder Diagram files into the format of Automation Studio 6, in place.
-
-    The block types are completed in any case; without ``convert`` (option switched off)
-    or if the files cannot be converted (no Automation Studio 6, an error of its
-    conversion) they stay in the old format.
-    """
-    complete_old_ladder_files(paths)
-    result = LadderUpgradeResult(remaining=list(paths))
-    if not paths or not convert:
-        return result
-    bin_dir = find_as6_bin()
-    if bin_dir is None:
-        result.errors.append(tr("ladder_no_as6"))
-        return result
-    result.version = project_working_version(project_dir)
+def remove_tree(path: Path) -> None:
+    """Delete a folder, also its write-protected files."""
+    def writable(function: Callable[..., object], name: str, *_error: object) -> None:
+        os.chmod(name, stat.S_IWRITE)
+        function(name)
     try:
-        program = ladder_converter_program()
-        with tempfile.TemporaryDirectory(prefix="BkNG_ld_") as temp:
-            sources: dict[str, tuple[Path, Path]] = {}
-            for index, path in enumerate(paths):
-                # The file keeps its name: the conversion may take information from it.
-                source = Path(temp) / str(index) / path.name
-                source.parent.mkdir()
-                source.write_text(prepare_ladder_for_as6(read_text(path)), encoding="utf-8")
-                sources[str(source)] = (path, source.with_name(source.stem + "_as6" + source.suffix))
-            listing = Path(temp) / "files.txt"
-            listing.write_text("".join(f"{source}|{target}\n" for source, (_, target) in sources.items()),
-                               encoding="utf-8")
-            run = subprocess.run([str(program), str(bin_dir), result.version, str(listing)], capture_output=True,
-                                 text=True, encoding="utf-8", errors="replace", creationflags=NO_WINDOW, timeout=900)
-            if run.returncode not in (0, 2):
-                raise ConversionError(run.stderr.strip() or f"exit code {run.returncode}")
-            for line in run.stdout.splitlines():
-                status, _, rest = line.partition(" ")
-                source, _, message = rest.partition("\t")
-                if source not in sources:
-                    continue
-                path, target = sources[source]
-                if status == "OK" and target.is_file():
-                    path.write_bytes(target.read_bytes())
-                    result.converted.append(path)
-                else:
-                    result.errors.append(tr("ladder_file_failed", file=path.name, error=message or status))
-    except (ConversionError, OSError, subprocess.SubprocessError) as error:
-        result.errors.append(tr("ladder_as6_failed", error=error))
-    result.remaining = [path for path in paths if path not in result.converted]
-    return result
+        shutil.rmtree(path, onexc=writable)  # Python 3.12 or later
+    except TypeError:
+        shutil.rmtree(path, onerror=writable)
 
 
-def ladder_upgrade_report(upgrade: LadderUpgradeResult) -> tuple[str, list[str]]:
-    """Return the report details and warnings of a Ladder Diagram conversion."""
-    details = tr("ladder_converted", count=len(upgrade.converted), version=upgrade.version) if upgrade.converted else ""
-    warnings = list(upgrade.errors)
-    if upgrade.remaining:
-        warnings.append(tr("warn_ladder_format", count=len(upgrade.remaining),
-                           tasks=", ".join(sorted({path.parent.name for path in upgrade.remaining}))))
-    return details, warnings
+def ladder_migration_folders(logical: Path, paths: list[Path]) -> list[Path]:
+    """Return the folders (relative to ``logical``) that hold the Ladder Diagram files, outermost first."""
+    folders: list[Path] = []
+    for folder in sorted({path.parent.relative_to(logical) for path in paths}, key=lambda path: len(path.parts)):
+        if not any(parent in folder.parents for parent in folders):
+            folders.append(folder)
+    return folders
+
+
+def create_ladder_migration_project(project: Path, paths: list[Path]) -> Path:
+    """Create the AS 4.12 helper project next to ``project`` with the programs of the old Ladder Diagrams.
+
+    ``paths`` are Ladder Diagram files of the project in the old format.  A helper project left over
+    from an earlier run is replaced.  Returns the project file (.apj) of the helper project.
+    """
+    logical = logical_dir(project)
+    helper = project.parent / (project.name + LADDER_MIGRATION_SUFFIX)
+    project_file = helper / (helper.name + PROJECT_FILE_SUFFIX)
+    if helper.exists():
+        if not project_file.is_file():
+            raise ConversionError(tr("ladder_helper_exists", path=helper))
+        remove_tree(helper)
+    for relative, text in LADDER_MIGRATION_SKELETON.items():
+        target = helper / relative.format(name=helper.name, cpu=LADDER_MIGRATION_CPU)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("﻿" + text.format(cpu=LADDER_MIGRATION_CPU).replace("\n", "\r\n"),
+                          encoding="utf-8", newline="")
+    complete_old_ladder_files(paths)
+    packages: list[Path] = []
+    for folder in ladder_migration_folders(logical, paths):
+        kind = "Program" if any(child.suffix.casefold() == ".prg" for child in (logical / folder).iterdir()) else "Package"
+        copy_logical_object(logical, helper / "Logical", folder, kind, packages, keep_old_header=True)
+    return project_file
+
+
+def converted_ladder_copies(project: Path, helper_file: Path, paths: list[Path]) -> dict[Path, Path]:
+    """Return the Ladder Diagram files whose copy in the helper project Automation Studio 6 has converted."""
+    logical, helper_logical = logical_dir(project), helper_file.parent / "Logical"
+    converted: dict[Path, Path] = {}
+    for path in paths:
+        copy = helper_logical / path.relative_to(logical)
+        if copy.is_file():
+            text = read_text(copy)
+            if "<networks" not in text and "BR_ChecksumInformation" in text:
+                converted[path] = copy
+    return converted
+
+
+def take_over_converted_ladder(project: Path, helper_file: Path, paths: list[Path]) -> list[Path]:
+    """Copy the converted Ladder Diagrams back into the project; returns those still in the old format.
+
+    The helper project is deleted when all files were converted.
+    """
+    converted = converted_ladder_copies(project, helper_file, paths)
+    for path, copy in converted.items():
+        path.write_bytes(copy.read_bytes())
+    remaining = [path for path in paths if path not in converted]
+    if not remaining:
+        remove_tree(helper_file.parent)
+    return remaining
+
+
+def find_as6_program() -> Path | None:
+    """Return Automation Studio 6 (pg.exe), preferring the installation in the language of the converter."""
+    roots = {os.environ.get("ProgramFiles(x86)"), os.environ.get("ProgramFiles")} - {None, ""}
+    programs = sorted(path for root in roots for path in Path(root, "BRAutomation").glob("AS6*/Bin-*/pg.exe"))
+    preferred = [path for path in programs if path.parent.name.casefold() == f"bin-{_language}"]
+    return (preferred or programs or [None])[0]
+
+
+def as6_processes_with(project_file: Path) -> dict[int, list[int]]:
+    """Return {process id: [window handles]} of the Automation Studio instances with ``project_file`` open.
+
+    Automation Studio shows the path of the open project in the title of its main window.
+    """
+    if os.name != "nt":
+        return {}
+    import ctypes
+    from ctypes import wintypes
+    user32 = ctypes.WinDLL("user32")
+    wanted = str(project_file).casefold()
+    found: dict[int, list[int]] = {}
+
+    @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    def visit(hwnd: int, _param: int) -> bool:
+        length = user32.GetWindowTextLengthW(hwnd)
+        if length and user32.IsWindowVisible(hwnd):
+            title = ctypes.create_unicode_buffer(length + 1)
+            user32.GetWindowTextW(hwnd, title, length + 1)
+            if wanted in title.value.casefold() and "automation studio" in title.value.casefold():
+                pid = wintypes.DWORD()
+                user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+                found.setdefault(pid.value, []).append(hwnd)
+        return True
+
+    user32.EnumWindows(visit, 0)
+    return found
+
+
+def close_as6(project_file: Path, timeout: float = 30.0) -> None:
+    """Close the Automation Studio instances that have ``project_file`` open.
+
+    They are asked to close like with the close button; an instance that is still running after
+    ``timeout`` seconds (e.g. waiting in a dialog) is ended.  Only for the helper project, whose
+    converted files are already written and which is deleted afterwards.
+    """
+    processes = as6_processes_with(project_file)
+    if not processes:
+        return
+    import ctypes
+    from ctypes import wintypes
+    kernel32, user32 = ctypes.WinDLL("kernel32"), ctypes.WinDLL("user32")
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    kernel32.WaitForSingleObject.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+    kernel32.TerminateProcess.argtypes = (wintypes.HANDLE, wintypes.UINT)
+    kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    user32.PostMessageW.argtypes = (wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
+    synchronize, terminate, wm_close, timed_out = 0x00100000, 0x0001, 0x0010, 0x102
+    for windows in processes.values():
+        for hwnd in windows:
+            user32.PostMessageW(hwnd, wm_close, 0, 0)
+    for pid in processes:
+        handle = kernel32.OpenProcess(synchronize | terminate, False, pid)
+        if not handle:
+            continue
+        try:
+            if kernel32.WaitForSingleObject(handle, int(timeout * 1000)) == timed_out:
+                kernel32.TerminateProcess(handle, 1)
+                kernel32.WaitForSingleObject(handle, 10000)
+        finally:
+            kernel32.CloseHandle(handle)
+
+
+def start_as6(project_file: Path) -> bool:
+    """Start Automation Studio 6 with ``project_file``; False if it is not installed."""
+    program = find_as6_program()
+    if program is None:
+        return False
+    subprocess.Popen([str(program), str(project_file)], close_fds=True)
+    return True
 
 
 def is_encrypted_source(path: Path) -> bool:
@@ -4843,8 +4914,7 @@ def sw_sources(sw_text: str, element_re: re.Pattern[str]) -> list[tuple[str, Pat
     return entries
 
 
-def migrate_application(old_root: Path, new_root: Path, chooser: FileChooser | None = None,
-                        convert_ladder: bool = False) -> MigrationResult:
+def migrate_application(old_root: Path, new_root: Path, chooser: FileChooser | None = None) -> MigrationResult:
     """Copy the tasks and data modules deployed in the old Cpu.sw (except the BkNG base) and deploy them alike.
 
     Files of the packages above the tasks (e.g. package-wide .var files) are copied
@@ -4889,10 +4959,8 @@ def migrate_application(old_root: Path, new_root: Path, chooser: FileChooser | N
     result.warnings += warnings
     result.details += tr("application_tasks", tasks=len(tasks), files=files, deployed=len(deployed)) + "".join(
         f"- {task}\n" for task in tasks)
-    ladder_details, ladder_warnings = ladder_upgrade_report(
-        upgrade_old_ladder_files(old_ladder_files(new_logical / task for task in tasks), new_root, convert_ladder))
-    result.details += ladder_details
-    result.warnings += ladder_warnings
+    # Converted into the AS6 format by the last step (Ladder Diagrams); here only prepared.
+    complete_old_ladder_files(old_ladder_files(new_logical / task for task in tasks))
     result.warnings += discontinued_function_warnings(new_logical, (new_logical / task for task in tasks))
 
     # Data modules are taken over, the PtoP data module ptop as well.
@@ -5737,6 +5805,62 @@ class FileChoiceDialog(tk.Toplevel):
             self.destroy()
 
 
+class LadderMigrationDialog(tk.Toplevel):
+    """Modal dialog that guides through the conversion of the Ladder Diagrams in Automation Studio 6.
+
+    ``result`` is True after "Done", False after "Skip" (or closing the window).
+    ``remaining`` returns the number of Ladder Diagrams not yet converted in the helper project.
+    """
+
+    def __init__(self, master: tk.Misc, project_file: Path, count: int, remaining: Callable[[], int]) -> None:
+        super().__init__(master)
+        self.withdraw()  # shown once it is centred
+        self.project_file, self.count, self.remaining = project_file, count, remaining
+        self.result = False
+        self.title(tr("ladder_dialog_title"))
+        self.transient(master.winfo_toplevel())
+        self.minsize(560, 200)
+        self.columnconfigure(0, weight=1)
+        ttk.Label(self, padding=(12, 12, 12, 6), justify="left", wraplength=620,
+                  text=tr("ladder_dialog_text", count=count, path=project_file)).grid(row=0, column=0, sticky="w")
+        buttons = ttk.Frame(self, padding=12)
+        buttons.grid(row=1, column=0, sticky="e")
+        ttk.Button(buttons, text=tr("ladder_dialog_start"), command=self._start).pack(side="left", padx=(0, 8))
+        ttk.Button(buttons, text=tr("ladder_dialog_done"), command=self._done).pack(side="left", padx=(0, 8))
+        ttk.Button(buttons, text=tr("ladder_dialog_skip"), command=self.destroy).pack(side="left")
+        self.bind("<Escape>", lambda _event: self.destroy())
+        self.protocol("WM_DELETE_WINDOW", self.destroy)
+        FileChoiceDialog._center_on(self, master.winfo_toplevel())
+        self.deiconify()
+        self.grab_set()
+        self.wait_window()
+
+    def _start(self) -> None:
+        try:
+            started = start_as6(self.project_file)
+        except OSError:
+            started = False
+        if not started:
+            messagebox.showwarning(tr("ladder_dialog_title"), tr("ladder_dialog_no_as6", path=self.project_file),
+                                   parent=self)
+
+    def _done(self) -> None:
+        # Automation Studio with the helper project is closed first: it locks the files of the project.
+        self.configure(cursor="watch")
+        self.update()
+        try:
+            close_as6(self.project_file)
+        finally:
+            self.configure(cursor="")
+        remaining = self.remaining()
+        if remaining and not messagebox.askyesno(
+                tr("ladder_dialog_title"), tr("ladder_dialog_incomplete", remaining=remaining, count=self.count),
+                parent=self, icon="warning"):
+            return
+        self.result = True
+        self.destroy()
+
+
 PATH_LABEL_WIDTH = 26
 # Interval in which the window takes over the calls of the conversion thread, and the spinner.
 PROGRESS_POLL_MS = 50
@@ -5765,16 +5889,12 @@ class ConverterApp(ttk.Frame):
         self.migrate_application = tk.BooleanVar(value=True)
         self.migrate_users = tk.BooleanVar(value=True)
         self.migrate_visu = tk.BooleanVar(value=True)
-        # Off by default: it needs Automation Studio 6 and uses its internal functions.
-        self.convert_ladder_as6 = tk.BooleanVar(value=False)
         # Options (text key, variable) offered for each kind of source project.
         self.options_by_kind = {
-            PROJECT_KIND_BK2000: [("copy_ladder", self.copy_ladder), ("convert_ladder_as6", self.convert_ladder_as6),
-                                  ("copy_data", self.copy_data), ("copy_io", self.copy_io),
-                                  ("copy_ethernet", self.copy_ethernet), ("copy_opcua", self.enable_opcua),
-                                  ("convert_visu", self.convert_visu)],
-            PROJECT_KIND_BKNG: [("migrate_application", self.migrate_application),
-                                ("convert_ladder_as6", self.convert_ladder_as6), ("copy_io", self.copy_io),
+            PROJECT_KIND_BK2000: [("copy_ladder", self.copy_ladder), ("copy_data", self.copy_data),
+                                  ("copy_io", self.copy_io), ("copy_ethernet", self.copy_ethernet),
+                                  ("copy_opcua", self.enable_opcua), ("convert_visu", self.convert_visu)],
+            PROJECT_KIND_BKNG: [("migrate_application", self.migrate_application), ("copy_io", self.copy_io),
                                 ("copy_ethernet", self.copy_ethernet), ("migrate_users", self.migrate_users),
                                 ("migrate_opcua", self.enable_opcua), ("migrate_visu", self.migrate_visu)],
         }
@@ -5824,9 +5944,10 @@ class ConverterApp(ttk.Frame):
         self.options = ttk.Frame(self)
         self.options.grid(row=3, column=0, columnspan=3, pady=(12, 2), sticky="ew")
         self.show_options()
-        # Progress of a running conversion: bar over the steps and the current step with a spinner.
+        # Progress of a running conversion: bar over the steps, level with the convert button, and
+        # below it the current step with a spinner.
         progress_row = ttk.Frame(self)
-        progress_row.grid(row=4, column=0, columnspan=2, pady=(2, 10), padx=(0, 12), sticky="ew")
+        progress_row.grid(row=4, column=0, columnspan=3, pady=(2, 10), sticky="ew")
         progress_row.columnconfigure(0, weight=1)
         self.progress = ttk.Progressbar(progress_row, mode="determinate")
         self.progress.grid(row=0, column=0, sticky="ew")
@@ -5834,8 +5955,13 @@ class ConverterApp(ttk.Frame):
         self.progress_label.grid(row=1, column=0, sticky="w")
         self.progress_text = ""
         self.spinner = 0
-        self.convert_button = self._translate(ttk.Button(self, command=self.run_conversion), "convert")
-        self.convert_button.grid(row=4, column=2, pady=(2, 10), sticky="e")
+        # tk instead of ttk: the native ttk button of Windows ignores a background colour.
+        self.convert_button = self._translate(tk.Button(
+            progress_row, command=self.run_conversion, font=("Segoe UI", 11, "bold"), padx=20, pady=4,
+            foreground="white", background=CONVERT_COLOR, activeforeground="white",
+            activebackground=CONVERT_COLOR_ACTIVE, disabledforeground="white", relief="flat",
+            borderwidth=0, highlightthickness=0, cursor="hand2"), "convert")
+        self.convert_button.grid(row=0, column=1, padx=(12, 0), sticky="e")
         # Conversion in a worker thread; it hands Tk calls (dialogs, log, progress) to the main thread.
         self.worker: threading.Thread | None = None
         # A source ZIP file is unpacked in a thread as well: the thread, the key of its file and the
@@ -5848,6 +5974,11 @@ class ConverterApp(ttk.Frame):
         self.log = scrolledtext.ScrolledText(self, height=15, wrap=tk.WORD, state="disabled")
         self.log.grid(row=5, column=0, columnspan=3, sticky="nsew")
         self.write_log(tr("start_hint"))
+
+    def _enable_convert(self, enabled: bool) -> None:
+        self.convert_button.configure(state="normal" if enabled else "disabled",
+                                      background=CONVERT_COLOR if enabled else CONVERT_COLOR_DISABLED,
+                                      cursor="hand2" if enabled else "")
 
     def _translate(self, widget: tk.Widget, key: str, suffix: str = "") -> tk.Widget:
         widget.configure(text=tr(key) + suffix)
@@ -5868,19 +5999,9 @@ class ConverterApp(ttk.Frame):
             widget.destroy()
         self.option_widgets = []
         for row, (key, variable) in enumerate(self.options_by_kind[self.kind]):
-            command = self._ladder_option_changed if key == "convert_ladder_as6" else None
-            widget = self._translate(ttk.Checkbutton(self.options, variable=variable, command=command), key)
+            widget = self._translate(ttk.Checkbutton(self.options, variable=variable), key)
             widget.grid(row=row, column=0, pady=2, sticky="w")
             self.option_widgets.append(widget)
-
-    def _ladder_option_changed(self) -> None:
-        """When the conversion of Ladder Diagrams is switched on, tell that it needs Automation Studio 6."""
-        if not self.convert_ladder_as6.get():
-            return
-        bin_dir = find_as6_bin()
-        status = tr("ladder_as6_found", path=bin_dir) if bin_dir else tr("ladder_as6_not_found")
-        (messagebox.showinfo if bin_dir else messagebox.showwarning)(
-            tr("ladder_as6_title"), tr("ladder_as6_info", status=status), parent=self)
 
     def detect_kind(self) -> None:
         """Detect whether the selected source project is a Bk2000 project or a BkNG project to be migrated."""
@@ -5980,7 +6101,7 @@ class ConverterApp(ttk.Frame):
         if self.unpack_key == key:
             return  # already being unpacked
         self.unpack_key = key
-        self.convert_button.state(["disabled"])
+        self._enable_convert(False)
         self._show_busy(tr("source_unpacking"))
 
         def unpack() -> None:
@@ -6016,7 +6137,7 @@ class ConverterApp(ttk.Frame):
         self.unpacking = self.unpack_key = None
         self._end_busy()
         if self.worker is None:
-            self.convert_button.state(["!disabled"])
+            self._enable_convert(True)
 
     def choose_old(self) -> None:
         selection = filedialog.askopenfilename(
@@ -6088,9 +6209,8 @@ class ConverterApp(ttk.Frame):
             ("copy_ladder", self.copy_ladder), ("copy_data", self.copy_data), ("copy_io", self.copy_io),
             ("copy_ethernet", self.copy_ethernet), ("enable_opcua", self.enable_opcua),
             ("convert_visu", self.convert_visu), ("migrate_application", self.migrate_application),
-            ("migrate_users", self.migrate_users), ("migrate_visu", self.migrate_visu),
-            ("convert_ladder_as6", self.convert_ladder_as6))}
-        self.convert_button.state(["disabled"])
+            ("migrate_users", self.migrate_users), ("migrate_visu", self.migrate_visu))}
+        self._enable_convert(False)
         self.progress.configure(value=0, maximum=1)
         self.progress_label.configure(text="")
         self.worker = threading.Thread(target=self._convert, daemon=True,
@@ -6139,6 +6259,12 @@ class ConverterApp(ttk.Frame):
         else:
             self.polling = False
 
+    def _ask_ladder_migration(self, helper: Path, project: Path, paths: list[Path]) -> bool:
+        """Main thread: guide through the conversion of the Ladder Diagrams; True if it was done."""
+        def remaining() -> int:
+            return len(paths) - len(converted_ladder_copies(project, helper, paths))
+        return LadderMigrationDialog(self, helper, len(paths), remaining).result
+
     def _choose_in_main_thread(self, filename: str, root: Path, candidates: list[Path]) -> Path | None:
         return self._call(self.choose_file, filename, root, candidates)
 
@@ -6171,7 +6297,7 @@ class ConverterApp(ttk.Frame):
             if str(self.progress.cget("mode")) == "indeterminate":
                 self.progress.stop()  # e.g. unpacking the base project failed
                 self.progress.configure(mode="determinate", value=0)
-            self.convert_button.state(["!disabled"])
+            self._enable_convert(True)
             self.progress_text = ""
             self.progress_label.configure(text="")
 
@@ -6233,12 +6359,11 @@ class ConverterApp(ttk.Frame):
             return ReportSection(tr("step_global"), details, result.warnings)
 
         def ladder_tasks() -> ReportSection:
-            ladder = copy_ladder_tasks(old_root, new_root, chooser, options["convert_ladder_as6"])
+            ladder = copy_ladder_tasks(old_root, new_root, chooser)
             details = (tr("ladder_summary", tasks=len(ladder.tasks), files=ladder.files_copied,
                           overwritten=ladder.files_overwritten, packages=len(ladder.packages_updated))
                        + tr("ladder_deployed", count=len(ladder.deployed))
                        + tr("ladder_tasks") + "\n" + "".join(f"- {task}\n" for task in ladder.tasks))
-            details += ladder.ladder_details
             return ReportSection(tr("step_ladder"), details, ladder.warnings)
 
         def data_objects() -> ReportSection:
@@ -6288,7 +6413,7 @@ class ConverterApp(ttk.Frame):
                                                       replaced=opcua.replaced, path=opcua.target), opcua.warnings)
 
         def user_visu() -> ReportSection:
-            visu = convert_user_visu(old_root, new_root, global_var[0], chooser, options["convert_ladder_as6"])
+            visu = convert_user_visu(old_root, new_root, global_var[0], chooser)
             if visu.visu is None:
                 details = tr("visu_none")
             else:
@@ -6325,6 +6450,23 @@ class ConverterApp(ttk.Frame):
                 result.warnings.append(tr("warn_ptop", path=path.relative_to(old_root)))
             return result
 
+        def ladder_migration() -> ReportSection:
+            """Last step: Automation Studio 6 converts the old Ladder Diagrams in a helper project."""
+            paths = old_ladder_files([logical_dir(new_root)])
+            if not paths:
+                return ReportSection(tr("step_ladder_migration"), tr("ladder_migration_none"))
+            helper = create_ladder_migration_project(new_root, paths)
+            if not self._call(self._ask_ladder_migration, helper, new_root, paths):
+                remove_tree(helper.parent)
+                return ReportSection(tr("step_ladder_migration"), tr("ladder_migration_skipped"),
+                                     [ladder_format_warning(paths)])
+            remaining = take_over_converted_ladder(new_root, helper, paths)
+            details = tr("ladder_migration_done", count=len(paths) - len(remaining))
+            if remaining:
+                details += tr("ladder_migration_kept", path=helper.parent)
+            return ReportSection(tr("step_ladder_migration"), details,
+                                 [ladder_format_warning(remaining)] if remaining else [])
+
         def migrate_global() -> MigrationResult:
             result, target = migrate_global_declarations(old_root, new_root)
             global_var.append(target)
@@ -6338,8 +6480,7 @@ class ConverterApp(ttk.Frame):
                      ("step_visu_task", True, migration_step("step_visu_task",
                                                              lambda: migrate_visu_task_settings(old_root, new_root))),
                      ("step_application", options["migrate_application"], migration_step(
-                         "step_application", lambda: migrate_application(old_root, new_root, chooser,
-                                                                         options["convert_ladder_as6"]))),
+                         "step_application", lambda: migrate_application(old_root, new_root, chooser))),
                      ("step_libraries", options["migrate_application"], migration_step(
                          "step_libraries", lambda: migrate_libraries(old_root, new_root, chooser))),
                      ("step_io", options["copy_io"], io_configuration),
@@ -6349,7 +6490,8 @@ class ConverterApp(ttk.Frame):
                      ("step_opcua", options["enable_opcua"], migration_step(
                          "step_opcua", lambda: migrate_opcua(old_root, new_root, global_var[0], chooser))),
                      ("step_visu_migration", options["migrate_visu"], migration_step(
-                         "step_visu_migration", lambda: migrate_visu(old_root, new_root, chooser)))]
+                         "step_visu_migration", lambda: migrate_visu(old_root, new_root, chooser))),
+                     ("step_ladder_migration", True, ladder_migration)]
         else:
             steps = [("step_analysis", True, analysis),
                      ("step_global", True, convert_global),
@@ -6358,7 +6500,8 @@ class ConverterApp(ttk.Frame):
                      ("step_io", options["copy_io"], io_configuration),
                      ("step_ethernet", options["copy_ethernet"], ethernet_settings),
                      ("step_opcua", options["enable_opcua"], opcua_variables),
-                     ("step_visu", options["convert_visu"], user_visu)]
+                     ("step_visu", options["convert_visu"], user_visu),
+                     ("step_ladder_migration", True, ladder_migration)]
         enabled_steps = [(title, step) for title, enabled, step in steps if enabled]
         for number, (title, step) in enumerate(enabled_steps):
             self._call(self._show_progress, number, len(enabled_steps),

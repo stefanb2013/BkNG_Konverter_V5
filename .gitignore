@@ -1,5 +1,5 @@
 # Only what is needed to run and use the converter belongs to the repository:
-# bkng_converter.py, as6_ladder/, assets/, ANLEITUNG.md, README.md, LICENSE.
+# bkng_converter.py, BkNgKonvIcon.ico, ANLEITUNG.md, README.md, LICENSE.
 # BkNG base projects (e.g. BkNG_Basis_3_10.zip) are B&R software and must not be part of it.
 # The converter is published as Python source only; no executables are built.
 
@@ -28,3 +28,9 @@ BkNgBasis_3_01/
 
 # Original task description, not a pip requirements file
 Requirement.txt
+
+# Working material for the ladder diagram migration
+KOP_Migration/
+
+# Source image of the program icon; only BkNgKonvIcon.ico is used
+BkNgKonvIcon.png

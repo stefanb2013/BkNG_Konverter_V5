@@ -9,8 +9,6 @@ Bericht mit allen Punkten, die noch von Hand zu erledigen sind.
 - Windows
 - Python 3.10 oder neuer mit tkinter (beim Installer von python.org enthalten).
   Weitere Pakete sind nicht nötig.
-- Optional: ein installiertes Automation Studio 6. Damit werden alte Kontaktpläne
-  automatisch in das AS6-Format gebracht (siehe [Kontaktpläne](#kontaktpläne)).
 - **Quellprojekt:** ein Bk2000-Projekt mit `dplist.dat`, `gruppen.dat` und `global.var`
   oder ein BkNG-Projekt ab Automation Studio 4.4 (mit dem Programm `VisuTask`), als
   Projektordner oder als ZIP-Datei.
@@ -58,11 +56,12 @@ Der Konverter erkennt die Betriebsart selbst und zeigt sie unter dem Quellprojek
    - **BkNG-Basisprojekt aus ZIP-Datei:** die ZIP-Datei und einen Zielordner. Das
      Projekt wird dort als `<Quellname>_AS6` entpackt. Gibt es diesen Ordner schon,
      bricht der Konverter ab.
-4. Die angebotenen Optionen prüfen (siehe unten). Standardmäßig sind alle angehakt
-   außer der Konvertierung der Kontaktpläne mit Automation Studio 6.
+4. Die angebotenen Optionen prüfen (siehe unten). Standardmäßig sind alle angehakt.
 5. Auf **Konvertieren** klicken. Gibt es eine Datei oder Hardware-Konfiguration
    mehrfach, öffnet sich ein Auswahlfenster.
-6. Am Ende zeigt ein Fenster die Zahl der offenen Punkte und bietet an, den Bericht zu
+6. Enthält das Projekt danach Kontaktpläne im alten Format, führt ein Fenster durch
+   ihre Konvertierung mit Automation Studio 6 (siehe [Kontaktpläne](#kontaktpläne)).
+7. Am Ende zeigt ein Fenster die Zahl der offenen Punkte und bietet an, den Bericht zu
    öffnen. Die offenen Punkte abarbeiten, danach das Projekt in Automation Studio 6
    öffnen und übersetzen.
 
@@ -73,7 +72,6 @@ Der Konverter erkennt die Betriebsart selbst und zeigt sie unter dem Quellprojek
 | Option | Wirkung |
 |---|---|
 | Kontaktplan-Tasks (.ld) kopieren | Kopiert alle Tasks mit Kontaktplänen samt Ordnerstruktur und trägt sie in dieselbe Taskklasse (Cpu.sw) ein wie im Bk2000-Projekt. |
-| Alte Kontaktpläne mit Automation Studio 6 konvertieren | Bringt alte Kontaktpläne in das AS6-Format (siehe [Kontaktpläne](#kontaktpläne)). Standardmäßig aus; Automation Studio 6 muss installiert sein. |
 | Datenmodule (.dat) kopieren | Kopiert alle Datenmodule außer `dplist`, `gruppen` und den Bk2000-Standardmodulen und trägt sie in die Cpu.sw ein. |
 | X20-I/O-Module inkl. I/O-Mapping | Übernimmt die X20-Module (ohne die alte SPS) mit I/O-Mapping in die aktive Hardware-Konfiguration. PROFIBUS-Slaves werden mitgenommen, wenn ihre GSD-Datei im Bk2000-Projekt liegt. |
 | Ethernet-Einstellungen der SPS | IF2: IP-Adresse, Subnetzmaske, Hostname, Modus (feste IP oder DHCP); Gateway; alle Einstellungen der IF3. |
@@ -85,7 +83,6 @@ Der Konverter erkennt die Betriebsart selbst und zeigt sie unter dem Quellprojek
 | Option | Wirkung |
 |---|---|
 | Tasks, Datenmodule und Kundenbibliotheken | Übernimmt die in der alten Cpu.sw eingetragenen Tasks und Datenmodule (außer VisuTask) in dieselben Taskklassen, dazu weitere Dateien direkt unter `Logical` (z. B. `.url`-Verknüpfungen). Kundenbibliotheken nur mit Quellcode (`.c`, `.st`); keine B&R- oder Burklimat-Bibliotheken. |
-| Alte Kontaktpläne mit Automation Studio 6 konvertieren | Wie bei der Konvertierung. |
 | X20-I/O-Module / Ethernet-Einstellungen | Wie bei der Konvertierung. |
 | Benutzer und Rollen | Übernimmt Benutzer und Rollen, auch in die mapp-Benutzerverwaltung. Passwörter müssen neu eingegeben werden (AS6 speichert sie als Argon2-Hash). |
 | Bk-Datenpunkte und OPC-UA-Variablen | Gibt die Bk-Datenpunkte und die weiteren OPC-UA-Variablen des alten Projekts frei. |
@@ -98,8 +95,8 @@ Testseiten), Ergänzen fehlender Deklarationen aus `Global.var`/`Global.typ` und
 
 ## Was der Konverter zusätzlich erledigt
 
-- **Kontaktpläne** im Format von Automation Studio < 6 werden auf Wunsch (Option) in
-  das AS6-Format gebracht (siehe unten).
+- **Kontaktpläne** im Format von Automation Studio < 6 werden mit Hilfe von Automation
+  Studio 6 in dessen Format gebracht (siehe unten).
 - **Parameternamen** in den Initialisierungen der Bk-Datenpunkte werden so geschrieben,
   wie der Baustein sie deklariert (z. B. `YMin` → `Ymin`). Automation Studio 6
   unterscheidet hier Groß- und Kleinschreibung.
@@ -112,29 +109,33 @@ Testseiten), Ergänzen fehlender Deklarationen aus `Global.var`/`Global.typ` und
 
 ## Kontaktpläne
 
-Alte Kontaktpläne (Format von Automation Studio < 6) baut AS6 erst, nachdem sie einmal
-im Editor geöffnet und gespeichert wurden (sonst Build-Fehler 1113). In jedem Fall
-ergänzt der Konverter, was der AS6-Editor aus den Bibliotheken nehmen würde, z. B. den
-Typ jedes Bausteinteils; so werden die Pläne beim Öffnen in AS6 richtig umgesetzt.
+Alte Kontaktpläne (Format von Automation Studio < 6) baut AS6 nicht (Build-Fehler 1113).
+Automation Studio 6 konvertiert sie aber selbst, und zwar alle auf einmal, wenn es ein
+Projekt von Automation Studio 4 öffnet (Projekt-Upgrade). Das nutzt der Konverter:
 
-Mit der Option **Alte Kontaktpläne mit Automation Studio 6 konvertieren** (standardmäßig
-aus) übernimmt der Konverter auch das Öffnen und Speichern: Er nutzt dieselbe
-Konvertierung wie der AS6-Editor. Beim Anhaken der Option erscheint ein Hinweis, dass
-Automation Studio 6 installiert sein muss, und ob es gefunden wurde. Die Konvertierung
-nutzt interne Funktionen von Automation Studio; ob das mit den Lizenzbedingungen von
-B&R vereinbar ist, muss der Anwender selbst prüfen.
+1. Als letzten Schritt legt er neben dem Zielprojekt ein kleines Hilfsprojekt für
+   Automation Studio 4.12 an (`<Zielprojekt>_KOP_Migration`) und kopiert die Programme
+   mit den alten Kontaktplänen hinein.
+2. Ein Fenster führt durch die Konvertierung:
+   - **Automation Studio 6 starten** öffnet das Hilfsprojekt in Automation Studio 6
+     (oder man öffnet es selbst in AS6).
+   - Das Projekt-Upgrade bestätigen und warten, bis das Projekt geöffnet ist. Keine
+     Datei öffnen und nichts übersetzen.
+   - **Fertig** schließt Automation Studio mit dem Hilfsprojekt, übernimmt die
+     konvertierten Kontaktpläne in das Zielprojekt und löscht das Hilfsprojekt. Andere
+     geöffnete Automation-Studio-Fenster bleiben unberührt. Schließt sich Automation
+     Studio nicht innerhalb von 30 Sekunden (z. B. wegen einer offenen Rückfrage), wird
+     es beendet; die konvertierten Pläne sind dann bereits gespeichert. Sind nicht alle
+     Pläne konvertiert, fragt der Konverter nach; das Hilfsprojekt mit den übrigen Plänen
+     bleibt dann erhalten.
+   - **Überspringen** lässt die Pläne im alten Format und löscht das Hilfsprojekt.
+3. Pläne, die im alten Format bleiben, nennt der Bericht als offenen Punkt: jeden
+   einmal in Automation Studio 6 öffnen und speichern.
 
-- Vor der Konvertierung ergänzt der Konverter außerdem die Namen erweiterbarer Eingänge
-  (`IN1`, `IN2`, …) und ein leeres Netzwerk in leeren Plänen.
-- Beim ersten Lauf wird dafür ein kleines Hilfsprogramm aus `as6_ladder\LdConvert.cs`
-  mit dem C#-Compiler von Windows übersetzt und unter
-  `%LOCALAPPDATA%\BkNG-Konverter` abgelegt.
-- Automation Studio 6 wird unter `Programme (x86)\BRAutomation\AS6…` gesucht. Über
-  die Umgebungsvariable `BKNG_AS6_BIN` lässt sich ein bestimmter `Bin-de`-Ordner
-  vorgeben; ein leerer Wert schaltet die automatische Konvertierung ab.
-- Ohne die Option, ohne Automation Studio 6 oder wenn die Konvertierung einer Datei
-  scheitert, bleiben die Pläne im alten Format, und der Bericht nennt sie als offenen
-  Punkt.
+Vorher ergänzt der Konverter in den alten Plänen den Bausteintyp: Im alten Format 1.0
+steht er nur im oberen Teil eines Bausteins, Automation Studio 6 übernimmt ihn beim
+Konvertieren aber aus dem Kopf. Ohne diese Ergänzung wären Bausteine wie `BkAl` nach der
+Konvertierung leer.
 
 ## Konvertierungsbericht
 
@@ -146,8 +147,8 @@ PtoP-Kopplung und alle kundenspezifischen Bibliotheken.
 
 ### Typische offene Punkte
 
-- Kontaktpläne, die nicht automatisch konvertiert werden konnten: einmal in
-  Automation Studio 6 öffnen und speichern (sonst Build-Fehler 1113).
+- Kontaktpläne, die im alten Format geblieben sind: jeden einmal in Automation Studio 6
+  öffnen und speichern (sonst Build-Fehler 1113).
 - Verschlüsselte Bibliotheken: mit dem *Decrypt Files Wizard* von Automation Studio
   entschlüsseln (Passwort nötig).
 - Fehlende B&R-Bibliotheken über die Toolbox hinzufügen; abgekündigte Bibliotheken
