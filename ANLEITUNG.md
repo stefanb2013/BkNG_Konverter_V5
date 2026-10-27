@@ -10,8 +10,8 @@ Bericht mit allen Punkten, die noch von Hand zu erledigen sind.
 - Python 3.10 oder neuer mit tkinter (beim Installer von python.org enthalten).
   Weitere Pakete sind nicht nötig.
 - **Quellprojekt:** ein Bk2000-Projekt mit `dplist.dat`, `gruppen.dat` und `global.var`
-  oder ein BkNG-Projekt ab Automation Studio 4.4 (mit dem Programm `VisuTask`), als
-  Projektordner oder als ZIP-Datei.
+  oder ein BkNG-Projekt ab Automation Studio 4.4 (mit dem Programm `VisuTask`), auch
+  ein BkNG-Projekt von Automation Studio 6.x, als Projektordner oder als ZIP-Datei.
 - **Ziel:** ein leeres BkNG-Basisprojekt (AS6), als Projektordner oder als ZIP-Datei.
 - Beide Projekte sind in Automation Studio geschlossen.
 
@@ -39,10 +39,13 @@ Der Konverter erkennt die Betriebsart selbst und zeigt sie unter dem Quellprojek
   kommen aus der `dplist.dat`, ihre Gruppe aus der `gruppen.dat`. Der UST-Name wird in
   `UST_Name` der VisuTask eingetragen. Je nach Auswahl kommen Kontaktpläne,
   Datenmodule, Hardware, Ethernet, OPC UA und die Benutzervisu dazu.
-- **Migration (BkNG-Projekt aus AS 4):** Die projektspezifischen Teile werden in das
-  AS6-Basisprojekt übernommen: fehlende globale Deklarationen, VisuTask-Einstellungen,
-  Tasks, Datenmodule, Kundenbibliotheken, Hardware, Benutzer, OPC UA und die
-  Kundenvisu. Die Beispiele und Testseiten des Basisprojekts werden entfernt.
+- **Migration (BkNG-Projekt aus AS 4 oder AS 6):** Die projektspezifischen Teile werden
+  in das AS6-Basisprojekt übernommen: fehlende globale Deklarationen,
+  VisuTask-Einstellungen, Tasks, Datenmodule, Kundenbibliotheken, Hardware, Benutzer,
+  OPC UA und die Kundenvisu. Die Beispiele und Testseiten des Basisprojekts werden
+  entfernt (und auch aus einem AS6-Quellprojekt nicht übernommen). Ob das Quellprojekt
+  aus AS 4 oder AS 6 stammt, steht in seiner `.apj`-Datei. Die Kontaktpläne eines
+  AS6-Projekts liegen schon im AS6-Format und werden nicht gewandelt.
 
 ## Bedienung
 
@@ -50,11 +53,13 @@ Der Konverter erkennt die Betriebsart selbst und zeigt sie unter dem Quellprojek
 2. Unter **Quelle** bei *Quellprojekt (.apj/.zip)* auf **Durchsuchen…** klicken und die
    Projektdatei (`.apj`) oder die ZIP-Datei mit dem Projekt auswählen. Eine ZIP-Datei
    wird in einen temporären Ordner entpackt, der beim Beenden gelöscht wird; die
-   ZIP-Datei selbst bleibt unverändert. Darunter erscheint die erkannte Betriebsart.
+   ZIP-Datei selbst bleibt unverändert. Darunter erscheint die erkannte Betriebsart,
+   bei einem BkNG-Projekt mit seiner BkNG-Version (Version des Programms `VisuTask`).
 3. Unter **Ziel** eine der beiden Möglichkeiten wählen:
    - **Bestehendes BkNG-Projekt:** die Projektdatei (`.apj`) des leeren Basisprojekts.
    - **BkNG-Basisprojekt aus ZIP-Datei:** die ZIP-Datei und einen Zielordner. Das
-     Projekt wird dort als `<Quellname>_AS6` entpackt. Gibt es diesen Ordner schon,
+     Projekt wird dort als `<Quellname>_BkNG<Version>` entpackt, `<Version>` ist die
+     BkNG-Version des Basisprojekts ohne Punkte (z. B. `A0648_BkNG301`). Gibt es diesen Ordner schon,
      bricht der Konverter ab.
 4. Die angebotenen Optionen prüfen (siehe unten). Standardmäßig sind alle angehakt.
 5. Auf **Konvertieren** klicken. Gibt es eine Datei oder Hardware-Konfiguration
@@ -78,13 +83,14 @@ Der Konverter erkennt die Betriebsart selbst und zeigt sie unter dem Quellprojek
 | Bk-Datenpunkte in OpcUaBkV.uad freigeben | Gibt alle Bk-Datenpunkte mit ihren Unterelementen in OPC UA frei. |
 | UVIS-Seiten umwandeln (experimentell) | Wandelt die VC4-Benutzervisu (UVis-Seiten) in BkVisu-Seiten um und legt Navigationsbuttons an. |
 
-### Migration eines BkNG-Projekts (AS 4)
+### Migration eines BkNG-Projekts (AS 4 oder AS 6)
 
 | Option | Wirkung |
 |---|---|
 | Tasks, Datenmodule und Kundenbibliotheken | Übernimmt die in der alten Cpu.sw eingetragenen Tasks und Datenmodule (außer VisuTask) in dieselben Taskklassen, dazu weitere Dateien direkt unter `Logical` (z. B. `.url`-Verknüpfungen). Kundenbibliotheken nur mit Quellcode (`.c`, `.st`); keine B&R- oder Burklimat-Bibliotheken. |
-| X20-I/O-Module / Ethernet-Einstellungen | Wie bei der Konvertierung. |
-| Benutzer und Rollen | Übernimmt Benutzer und Rollen, auch in die mapp-Benutzerverwaltung. Passwörter müssen neu eingegeben werden (AS6 speichert sie als Argon2-Hash). |
+| X20-I/O-Module / Ethernet-Einstellungen | Wie bei der Konvertierung (AS4-Projekt). |
+| Hardware 1:1 (nur AS6-Projekt) | Übernimmt die Hardware des alten Projekts unverändert: CPU mit allen Einstellungen (auch Ethernet), alle Module, I/O-Mapping, DTM-Konfiguration und GSD-Dateien. Der CPU-Ordner des Basisprojekts wird nach der alten CPU benannt. Fehlende Einstellungen des Basisprojekts nennt der Bericht. |
+| Benutzer und Rollen | Übernimmt Benutzer und Rollen, auch in die mapp-Benutzerverwaltung. Passwörter eines AS6-Projekts werden übernommen; die eines AS4-Projekts müssen neu eingegeben werden (AS6 speichert sie als Argon2-Hash). |
 | Bk-Datenpunkte und OPC-UA-Variablen | Gibt die Bk-Datenpunkte und die weiteren OPC-UA-Variablen des alten Projekts frei. |
 | Kundenvisu | Kopiert die eigenen Seiten mit Contents, Dialogen, eigenen Layouts, Medien, Texten, Session-Variablen, Bindings und Event-Bindings. `BkV_StartContent` und `BkV_NavigationContent` werden durch die alten ersetzt. |
 
@@ -96,7 +102,7 @@ Testseiten), Ergänzen fehlender Deklarationen aus `Global.var`/`Global.typ` und
 ## Was der Konverter zusätzlich erledigt
 
 - **Kontaktpläne** im Format von Automation Studio < 6 werden mit Hilfe von Automation
-  Studio 6 in dessen Format gebracht (siehe unten).
+  Studio 6 in dessen Format gebracht (siehe unten; entfällt bei einem AS6-Quellprojekt).
 - **Parameternamen** in den Initialisierungen der Bk-Datenpunkte werden so geschrieben,
   wie der Baustein sie deklariert (z. B. `YMin` → `Ymin`). Automation Studio 6
   unterscheidet hier Groß- und Kleinschreibung.

@@ -7,7 +7,17 @@
 ## Deutsch
 
 Der Konverter überführt Burklimat-Bk2000-Projekte und BkNG-Projekte aus Automation
-Studio 4 in das BkNG-Basisprojekt für Automation Studio 6.
+Studio 4 **und Automation Studio 6** in das BkNG-Basisprojekt für Automation Studio 6.
+
+- **Bk2000-Projekt:** Die Datenpunkte, Kontaktplan-Tasks, Datenmodule, Hardware und die
+  VC4-Benutzervisu werden in das BkNG-Projekt konvertiert.
+- **BkNG-Projekt aus AS 4.x oder AS 6.x:** Die projektspezifischen Teile (Deklarationen,
+  Tasks, Kundenbibliotheken, Hardware, Benutzer, OPC UA, Kundenvisu) werden in ein
+  neues BkNG-Basisprojekt migriert. Ob das Projekt aus AS 4 oder AS 6 stammt, erkennt
+  der Konverter an der `.apj`-Datei. Bei einem AS6-Projekt entfällt nur die Wandlung
+  der Kontaktpläne, sie liegen schon im AS6-Format; so lässt sich ein bestehendes
+  AS6-Projekt auf einen neuen Stand des Basisprojekts heben. Siehe
+  [Migration eines BkNG-Projekts](#migration-eines-bkng-projekts-von-automation-studio-4-oder-6-nach-as6).
 
 Anleitung für Anwender: [ANLEITUNG.md](ANLEITUNG.md)
 
@@ -97,10 +107,11 @@ einem Ordner darin liegen.
 
 Statt eines bestehenden BkNG-Projekts kann ein gezipptes BkNG-Basisprojekt mit einem
 Zielordner gewählt werden. Der Konverter entpackt das Projekt nach
-`<Zielordner>\<Quellname>_AS6`, benennt seine `.apj`-Datei in `<Quellname>_AS6.apj`
-um und konvertiert dann in dieses Projekt. Das Projekt darf direkt in der ZIP-Datei
-oder in einem Ordner darin liegen. Gibt es den Projektordner schon, wird nichts
-entpackt.
+`<Zielordner>\<Quellname>_BkNG<Version>`, benennt seine `.apj`-Datei ebenso um und
+konvertiert dann in dieses Projekt. `<Version>` ist die BkNG-Version des
+Basisprojekts (Version seines `VisuTask`) ohne Punkte, z. B. `A0648_BkNG301` für
+BkNG 3.0.1. Das Projekt darf direkt in der ZIP-Datei oder in einem Ordner darin
+liegen. Gibt es den Projektordner schon, bricht der Konverter ab.
 
 Nach der Konvertierung speichert der Konverter im BkNG-Projektordner einen Bericht
 (`Konvertierungsbericht_<Datum>_<Uhrzeit>.txt`, auf Englisch
@@ -138,12 +149,17 @@ neue Projekt zu ändern.
 
 Das Ziel ist immer ein Projekt für Automation Studio 6.
 
-### Migration eines BkNG-Projekts von Automation Studio 4 nach AS6
+### Migration eines BkNG-Projekts von Automation Studio 4 oder 6 nach AS6
 
 Ist das gewählte Quellprojekt ein BkNG-Projekt (ab AS 4.4, mit dem Programm
-`VisuTask`), migriert der Konverter es, statt es zu konvertieren. Die Oberfläche
-zeigt die erkannte Art unter dem Quellprojekt an und bietet die passenden Optionen.
-Im ZIP-Modus wird das Basisprojekt als `<Quellname>_AS6` entpackt. Die Migration
+`VisuTask`), migriert der Konverter es, statt es zu konvertieren. Die Version steht
+in der `.apj`-Datei: Auch ein BkNG-Projekt von Automation Studio 6.x wird so in das
+neue Basisprojekt migriert, mit denselben Schritten; nur seine Kontaktpläne müssen
+nicht gewandelt werden, sie liegen schon im AS6-Format, und seine Hardware wird 1:1
+übernommen (siehe Schritt 5). Die Oberfläche zeigt die erkannte Art unter dem
+Quellprojekt an, samt der BkNG-Version (Version des Programms `VisuTask`, z. B.
+„BkNG-Projekt V3.0.1 von Automation Studio 6.7“), und bietet die passenden Optionen.
+Im ZIP-Modus wird das Basisprojekt als `<Quellname>_BkNG<Version>` entpackt. Die Migration
 braucht keine `dplist.dat`, `gruppen.dat` oder VC4-Visu. Sie läuft so ab:
 
 1. Sie entfernt die Beispiele aus dem neuen Basisprojekt: das Programm und die Seiten
@@ -156,19 +172,28 @@ braucht keine `dplist.dat`, `gruppen.dat` oder VC4-Visu. Sie läuft so ab:
    `InfosAufStartAusblenden` und `NavNurBeiLogin`. Die Grenzen `*_MAXDP` bleiben wie
    im Basisprojekt.
 4. Sie kopiert die in der alten Cpu.sw eingetragenen Tasks und Datenmodule (außer der
-   VisuTask) und trägt sie in dieselben Taskklassen ein. Kundenbibliotheken werden nur
+   VisuTask und dem Beispiel `BkV_Sample`, das ein AS6-Projekt aus dem Basisprojekt
+   mitbringt) und trägt sie in dieselben Taskklassen ein. Kundenbibliotheken werden nur
    übernommen, wenn ihr Quellcode (`.c`, `.st`) enthalten ist; `bktools` und andere
    Burklimat- oder B&R-Bibliotheken nie.
 5. Sie übernimmt die I/O-Konfiguration und die Ethernet-Einstellungen wie bei der
-   Bk2000-Konvertierung.
+   Bk2000-Konvertierung. Bei einem AS6-Projekt übernimmt sie stattdessen die Hardware
+   1:1: `Hardware.hw` (CPU mit allen Einstellungen samt Ethernet, alle Module),
+   `Hardware.hwl`, `Hardware.jpg`, das I/O-Mapping, die DTM-Konfiguration und
+   GSD-Dateien. Der CPU-Ordner des Basisprojekts erhält den Namen der alten CPU, bei
+   anderem CPU-Typ wird die `ModuleId` in `Cpu.pkg` angepasst. I/O-Mappings des
+   Basisprojekts für Variablen, die das alte Projekt nicht zuordnet, bleiben erhalten.
+   Einstellungen und Module des Basisprojekts, die der alten Hardware fehlen, nennt
+   der Bericht.
 6. Sie übernimmt Benutzer und Rollen, auch in die mapp-Benutzerverwaltung
-   (`.mpuserx`). Passwörter lassen sich nicht übernehmen, weil AS6 sie als
-   Argon2-Hash speichert; der Bericht fordert auf, sie neu einzugeben.
+   (`.mpuserx`). Passwörter eines AS6-Projekts (Argon2-Hash) werden übernommen; die
+   eines AS4-Projekts lassen sich nicht übernehmen, weil AS6 sie als Argon2-Hash
+   speichert; der Bericht fordert auf, sie neu einzugeben.
 7. Sie gibt die Bk-Datenpunkte und die weiteren OPC-UA-Variablen des alten Projekts
    frei.
 8. Sie kopiert die Kundenvisu: die Seiten, die das Basisprojekt nicht kennt
-   (BkVisu-Seiten), mit ihren Contents, Dialogen, Medien, Texten und
-   Session-Variablen. `BkV_StartContent` und `BkV_NavigationContent` werden durch die
+   (BkVisu-Seiten, ohne die Beispiel- und Testseiten), mit ihren Contents, Dialogen,
+   Medien, Texten und Session-Variablen. `BkV_StartContent` und `BkV_NavigationContent` werden durch die
    alten ersetzt. Alle Bindings und Event-Bindings dieser Contents kommen in
    `BkV_Bindings.binding` / `BkV_EventBindings.eventbinding` (Package `BkVisu` neben
    der `.vis`-Datei). Event-Bindings, die das Basisprojekt schon hat, werden nicht
@@ -179,7 +204,7 @@ braucht keine `dplist.dat`, `gruppen.dat` oder VC4-Visu. Sie läuft so ab:
 Kontaktpläne im Format von AS < 6 baut Automation Studio 6 nicht (Build-Fehler 1113).
 Es konvertiert sie aber alle selbst, wenn es ein Projekt von Automation Studio 4 öffnet
 (dokumentiertes Projekt-Upgrade). Darauf baut der letzte Schritt des Konverters auf (in
-beiden Betriebsarten):
+beiden Betriebsarten; entfällt bei der Migration eines AS6-Projekts):
 
 1. Er legt neben dem Zielprojekt ein minimales Projekt für Automation Studio 4.12 an
    (`<Zielprojekt>_KOP_Migration`: Projektdatei, Packages, Hardware nur mit einer CPU;
@@ -263,7 +288,17 @@ Lizenzen:
 ## English
 
 The converter transfers Burklimat Bk2000 projects and BkNG projects of Automation
-Studio 4 into the BkNG base project of Automation Studio 6.
+Studio 4 **and Automation Studio 6** into the BkNG base project of Automation Studio 6.
+
+- **Bk2000 project:** the datapoints, ladder tasks, data modules, hardware and the VC4
+  user visu are converted into the BkNG project.
+- **BkNG project of AS 4.x or AS 6.x:** the customer-specific parts (declarations,
+  tasks, customer libraries, hardware, users, OPC UA, customer visu) are migrated into
+  a new BkNG base project. The converter tells from the `.apj` file whether the
+  project comes from AS 4 or AS 6. For an AS6 project only the conversion of the
+  Ladder Diagrams is omitted, they are in the AS6 format already; this way an existing
+  AS6 project can be brought onto a new version of the base project. See
+  [Migrating a BkNG project](#migrating-a-bkng-project-from-automation-studio-4-or-6-to-as6).
 
 User guide (German): [ANLEITUNG.md](ANLEITUNG.md)
 
@@ -350,10 +385,11 @@ file or in a folder of it.
 
 Instead of an existing BkNG project you can select a zipped BkNG base project and
 a target folder. The converter unpacks the project into
-`<target folder>\<source name>_AS6` and renames its `.apj` file to
-`<source name>_AS6.apj`; it then converts into this project. The project may lie
-at the top of the ZIP file or in a folder of it. If the project folder already
-exists, nothing is unpacked.
+`<target folder>\<source name>_BkNG<version>`, renames its `.apj` file likewise and
+then converts into this project. `<version>` is the BkNG version of the base
+project (version of its `VisuTask`) without dots, e.g. `A0648_BkNG301` for BkNG
+3.0.1. The project may lie at the top of the ZIP file or in a folder of it. If the
+project folder already exists, the converter stops.
 
 After the conversion the converter saves a report
 (`Konvertierungsbericht_<date>_<time>.txt`, or `Conversion_report_…` in English)
@@ -390,12 +426,17 @@ without modifying the new project.
 
 The target is always an Automation Studio 6 project.
 
-### Migrating a BkNG project from Automation Studio 4 to AS6
+### Migrating a BkNG project from Automation Studio 4 or 6 to AS6
 
 If the selected source project is a BkNG project (AS 4.4 or later, with a
 program `VisuTask`), the converter migrates it instead of converting it. The
-GUI shows the detected kind below the source project and offers the matching
-options. In ZIP mode the base project is unpacked as `<source name>_AS6`.
+version is read from the `.apj` file: a BkNG project of Automation Studio 6.x is
+migrated into the new base project as well, with the same steps; only its Ladder
+Diagrams need no conversion, they are in the AS6 format already, and its hardware
+is taken over 1:1 (see step 5). The GUI shows the detected kind below the source
+project, including the BkNG version (version of the program `VisuTask`, e.g.
+"BkNG project V3.0.1 of Automation Studio 6.7"), and offers the matching options.
+In ZIP mode the base project is unpacked as `<source name>_BkNG<version>`.
 Migration needs no `dplist.dat`, `gruppen.dat` or VC4 visu. It works as follows:
 
 1. It removes the examples from the new base project: the `BkV_Sample` program and
@@ -407,17 +448,26 @@ Migration needs no `dplist.dat`, `gruppen.dat` or VC4 visu. It works as follows:
    `InfosAufStartAusblenden` and `NavNurBeiLogin`. The `*_MAXDP` limits stay as in
    the base project.
 4. It copies the tasks and data modules that are deployed in the old Cpu.sw (except
-   the VisuTask) and adds them to the same task classes. Customer libraries are
+   the VisuTask and the example `BkV_Sample` that an AS6 project has from the base
+   project) and adds them to the same task classes. Customer libraries are
    taken over only if their source code (`.c`, `.st`) is included. It never takes
    over `bktools` or other Burklimat or B&R libraries.
 5. It takes over the I/O configuration and Ethernet settings, as in the Bk2000
-   conversion.
+   conversion. For an AS6 project it takes over the hardware 1:1 instead:
+   `Hardware.hw` (CPU with all settings including Ethernet, all modules),
+   `Hardware.hwl`, `Hardware.jpg`, the I/O mapping, the DTM configuration and GSD
+   files. The CPU folder of the base project gets the name of the old CPU; for
+   another CPU type the `ModuleId` in `Cpu.pkg` is adapted. I/O mappings of the base
+   project for variables the old project does not map are kept. The report lists
+   settings and modules of the base project that the old hardware lacks.
 6. It takes over the users and roles, also into the mapp user management
-   (`.mpuserx`). Passwords cannot be taken over because AS6 stores them as Argon2
-   hashes. The report asks you to enter them again.
+   (`.mpuserx`). Passwords of an AS6 project (Argon2 hashes) are taken over. Those
+   of an AS4 project cannot be taken over because AS6 stores them as Argon2 hashes;
+   the report asks you to enter them again.
 7. It enables the Bk datapoints and the further OPC UA variables of the old project.
-8. It copies the customer visu: the pages unknown to the base project (BkVisu pages)
-   with their contents, dialogs, media, texts and session variables.
+8. It copies the customer visu: the pages unknown to the base project (BkVisu pages,
+   without the example and test pages) with their contents, dialogs, media, texts and
+   session variables.
    `BkV_StartContent` and `BkV_NavigationContent` are replaced by the old ones. All
    bindings and event bindings of these contents go into `BkV_Bindings.binding` /
    `BkV_EventBindings.eventbinding` (package `BkVisu` next to the `.vis` file).
@@ -428,7 +478,7 @@ Migration needs no `dplist.dat`, `gruppen.dat` or VC4 visu. It works as follows:
 Automation Studio 6 does not build Ladder Diagram files in the format of AS < 6 (build
 error 1113). It converts all of them itself, however, when it opens a project of
 Automation Studio 4 (documented project upgrade). The last step of the converter (both
-modes) relies on this:
+modes; omitted when migrating an AS6 project) relies on this:
 
 1. It creates a minimal project of Automation Studio 4.12 next to the target project
    (`<target project>_KOP_Migration`: project file, packages, hardware with one CPU only;

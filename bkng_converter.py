@@ -8,7 +8,8 @@ Use the two buttons to select the Automation Studio project files (``.apj``) of
 the old and new project, then click *Convert*. The selected new ``global.var`` is replaced.
 The old project may also be a ZIP file; it is unpacked into a temporary folder.
 Instead of an existing BkNG project, a zipped BkNG base project can be selected
-together with a target folder; it is unpacked there as ``<source name>_AS6``.
+together with a target folder; it is unpacked there as ``<source name>_BkNG<version>``
+(version of its VisuTask without dots, e.g. ``A0648_BkNG301``).
 Optionally, all tasks containing ladder diagrams (``.ld``) are copied from the
 old into the new project, keeping their folder structure, and the X20 I/O
 modules (without the old PLC) including their I/O mapping are copied into the
@@ -17,16 +18,18 @@ the PLC (host name, IP mode, IP address, subnet mask, default gateway) can be
 taken over as well, all Bk variables can be enabled in OPC UA (OpcUaBkV.uad), and a
 VC4 user visu (uvis) can be converted into BkVisu mappView pages.
 
-A BkNG project of Automation Studio 4 (with a program VisuTask) is migrated
+A BkNG project of Automation Studio 4 or 6 (with a program VisuTask) is migrated
 instead: its customer-specific parts (declarations, tasks, libraries with source
 code, users and roles, OPC UA variables and the customer visu with its bindings)
 are taken over into the BkNG base project of Automation Studio 6, whose examples
-are removed.  The target is always an Automation Studio 6 project.
+are removed; only the Ladder Diagrams of an AS4 project need converting into the
+AS6 format.  The target is always an Automation Studio 6 project.
 
 """
 
 from __future__ import annotations
 
+import html
 import os
 import queue
 import re
@@ -56,8 +59,9 @@ REQUIRED_OLD_FILES = ("dplist.dat", "gruppen.dat", "global.var")
 BK2000_FILES = ("dplist.dat", "gruppen.dat")
 PROJECT_FILE_SUFFIX = ".apj"
 ZIP_SUFFIX = ".zip"
-# Appended to the name of the source project (Bk2000 or BkNG) for a BkNG project unpacked from a ZIP file.
-NEW_PROJECT_SUFFIX = "_AS6"
+# Appended to the name of the source project (Bk2000 or BkNG) for a BkNG project unpacked from a ZIP file,
+# followed by the BkNG version of the base project without dots (e.g. A0648_BkNG301).
+NEW_PROJECT_SUFFIX = "_BkNG"
 REQUIRED_VIS_UST_STATUS = "VisUstStat : ARRAY[0..7] OF BOOL;"
 VARIABLE_RE = re.compile(
     r"^\s*(?P<name>[A-Za-z_][\w]*)\s*:\s*(?P<type>[A-Za-z_][\w.]*)\s*;"
@@ -195,7 +199,7 @@ TEXTS: dict[str, dict[str, str]] = {
                       "are taken over into the BkNG base project of Automation Studio 6.\n"
                       "The source project may also be a ZIP file; it is unpacked into a temporary folder.\n"
                       "Alternatively, select a zipped BkNG base project and a target folder; it is unpacked "
-                      "there as <source name>_AS6.\n"
+                      "there as <source name>_BkNG<version> (e.g. A0648_BkNG301).\n"
                       "A report with all open items (to do) is saved in the BkNG project folder.\n",
         "select_old": "Select Bk2000 or BkNG project",
         "select_new": "Select BkNG project",
@@ -300,7 +304,7 @@ TEXTS: dict[str, dict[str, str]] = {
                                 "interface {source} were taken over into {interface} of {cpu}. Please check.",
         "ethernet_mode_dhcp": "DHCP client",
         "warn_ethernet_mode": "{interface}: IP mode '{mode}' was taken over; further settings of this mode (e.g. DHCP leases) were not.",
-        "old_group": "Source: Bk2000 project or BkNG project (AS4)",
+        "old_group": "Source: Bk2000 project or BkNG project (AS4/AS6)",
         "new_group": "Target: BkNG project (AS6)",
         "new_mode_project": "Existing BkNG project",
         "new_mode_zip": "BkNG base project from ZIP file",
@@ -364,8 +368,30 @@ TEXTS: dict[str, dict[str, str]] = {
         "mode_unknown": "",
         "mode_bk2000": "Bk2000 project: conversion into the BkNG project",
         "mode_migration": "BkNG project of Automation Studio {version}: migration into the BkNG base project (AS6)",
+        "mode_migration_bkng": "BkNG project V{bkng} of Automation Studio {version}: migration into the BkNG base "
+                               "project (AS6)",
+        "copy_hardware": "Take over the hardware (CPU and I/O modules incl. I/O mapping) 1:1 from the old project",
+        "step_hardware": "Hardware (1:1)",
+        "hardware_summary": "Hardware of configuration {old} taken over 1:1 ({modules} modules, CPU {cpu}):\n"
+                            "{hardware}\nTaken over: {files}\nI/O mappings taken over: {mappings}\n",
+        "hardware_base_mappings": "I/O mappings of the base project kept (variables the old project does not map): "
+                                  "{count}\n",
+        "hardware_cpu_renamed": "CPU folder {old} renamed to {new} (name of the CPU in the old project).\n",
+        "hardware_gsd": "Device description(s) copied to {folder}: {files}\n",
+        "hardware_cpu_exists": "The CPU folder {cpu} cannot be renamed to {new}: {path} exists already.",
+        "warn_hardware_cpu_type": "The CPU type changed from {new_type} (base project) to {old_type}; ModuleId in "
+                                  "{path} was adapted. Please check the Automation Runtime version and the CPU "
+                                  "settings.",
+        "warn_hardware_base_settings": "{module}: settings of the base project that the old project lacks: "
+                                       "{settings}; please check whether they need to be added.",
+        "warn_hardware_base_modules": "Modules of the base project that the old hardware lacks were removed: "
+                                      "{modules}; please check.",
+        "warn_hardware_mapping_dropped": "I/O mapping of the base project dropped (module not in the old "
+                                         "hardware): {line}",
         "mode_error": "Project cannot be converted: {error}",
-        "already_as6": "The project is already an Automation Studio {version} project; a migration is not needed:\n{path}",
+        "unsupported_version": "Projects of Automation Studio {version} are not supported (Automation Studio 4 or 6 "
+                               "only):\n{path}",
+        "same_project": "Source and target are the same project; please select another BkNG project as target:\n{path}",
         "migrate_application": "Take over tasks, data modules and customer libraries (with source code)",
         "migrate_users": "Take over users and roles (passwords must be entered again)",
         "migrate_opcua": "Enable the Bk datapoints and the further OPC UA variables of the old project in OpcUaBkV.uad",
@@ -455,6 +481,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "users_none": "No users and roles found in the old project.\n",
         "users_summary": "Added roles: {roles}\nAdded users: {users}\nUsers of the base project kept: {kept}\n"
                          "Folder: {path}\n",
+        "users_passwords": "Passwords taken over (Argon2 hash): {users}\n",
         "warn_user_passwords": "The passwords of the users {users} cannot be taken over because Automation Studio 6 "
                                "stores them as Argon2 hash; please enter them again ({path}).",
         "warn_user_role_missing": "User {user} has the unknown role(s) {roles}; please check.",
@@ -532,7 +559,7 @@ TEXTS: dict[str, dict[str, str]] = {
                       "Bindings) werden in das BkNG-Basisprojekt von Automation Studio 6 übernommen.\n"
                       "Das Quellprojekt kann auch eine ZIP-Datei sein; es wird in einen temporären Ordner entpackt.\n"
                       "Alternativ ein gezipptes BkNG-Basisprojekt und einen Zielordner auswählen; es wird dort "
-                      "als <Quellname>_AS6 entpackt.\n"
+                      "als <Quellname>_BkNG<Version> entpackt (z. B. A0648_BkNG301).\n"
                       "Ein Bericht mit allen offenen Punkten (ToDo) wird im BkNG-Projektordner gespeichert.\n",
         "select_old": "Bk2000- oder BkNG-Projekt auswählen",
         "select_new": "BkNG-Projekt auswählen",
@@ -638,7 +665,7 @@ TEXTS: dict[str, dict[str, str]] = {
                                 "Ethernet-Schnittstelle {source} wurden in {interface} von {cpu} übernommen. Bitte prüfen.",
         "ethernet_mode_dhcp": "DHCP-Client",
         "warn_ethernet_mode": "{interface}: IP-Modus '{mode}' wurde übernommen, weitere Einstellungen dieses Modus (z. B. DHCP-Leases) nicht.",
-        "old_group": "Quelle: Bk2000-Projekt oder BkNG-Projekt (AS4)",
+        "old_group": "Quelle: Bk2000-Projekt oder BkNG-Projekt (AS4/AS6)",
         "new_group": "Ziel: BkNG-Projekt (AS6)",
         "new_mode_project": "Bestehendes BkNG-Projekt",
         "new_mode_zip": "BkNG-Basisprojekt aus ZIP-Datei",
@@ -702,9 +729,30 @@ TEXTS: dict[str, dict[str, str]] = {
         "mode_unknown": "",
         "mode_bk2000": "Bk2000-Projekt: Konvertierung in das BkNG-Projekt",
         "mode_migration": "BkNG-Projekt von Automation Studio {version}: Migration in das BkNG-Basisprojekt (AS6)",
+        "mode_migration_bkng": "BkNG-Projekt V{bkng} von Automation Studio {version}: Migration in das "
+                               "BkNG-Basisprojekt (AS6)",
+        "copy_hardware": "Hardware (CPU und I/O-Module inkl. I/O-Mapping) 1:1 aus dem alten Projekt übernehmen",
+        "step_hardware": "Hardware (1:1)",
+        "hardware_summary": "Hardware der Konfiguration {old} 1:1 übernommen ({modules} Module, CPU {cpu}):\n"
+                            "{hardware}\nÜbernommen: {files}\nÜbernommene I/O-Mappings: {mappings}\n",
+        "hardware_base_mappings": "Beibehaltene I/O-Mappings des Basisprojekts (Variablen, die das alte Projekt "
+                                  "nicht zuordnet): {count}\n",
+        "hardware_cpu_renamed": "CPU-Ordner {old} in {new} umbenannt (Name der CPU im alten Projekt).\n",
+        "hardware_gsd": "Gerätebeschreibung(en) kopiert nach {folder}: {files}\n",
+        "hardware_cpu_exists": "Der CPU-Ordner {cpu} kann nicht in {new} umbenannt werden: {path} existiert bereits.",
+        "warn_hardware_cpu_type": "Der CPU-Typ hat sich von {new_type} (Basisprojekt) zu {old_type} geändert; "
+                                  "ModuleId in {path} wurde angepasst. Bitte Automation-Runtime-Version und "
+                                  "CPU-Einstellungen prüfen.",
+        "warn_hardware_base_settings": "{module}: Einstellungen des Basisprojekts, die im alten Projekt fehlen: "
+                                       "{settings}; bitte prüfen, ob sie nachgetragen werden müssen.",
+        "warn_hardware_base_modules": "Module des Basisprojekts, die in der alten Hardware fehlen, wurden entfernt: "
+                                      "{modules}; bitte prüfen.",
+        "warn_hardware_mapping_dropped": "I/O-Mapping des Basisprojekts entfernt (Modul nicht in der alten "
+                                         "Hardware): {line}",
         "mode_error": "Projekt kann nicht umgewandelt werden: {error}",
-        "already_as6": "Das Projekt ist bereits ein Projekt von Automation Studio {version}; eine Migration ist nicht "
-                       "nötig:\n{path}",
+        "unsupported_version": "Projekte von Automation Studio {version} werden nicht unterstützt (nur Automation "
+                               "Studio 4 oder 6):\n{path}",
+        "same_project": "Quelle und Ziel sind dasselbe Projekt; bitte ein anderes BkNG-Projekt als Ziel wählen:\n{path}",
         "migrate_application": "Tasks, Datenmodule und Kundenbibliotheken (mit Quellcode) übernehmen",
         "migrate_users": "Benutzer und Rollen übernehmen (Passwörter müssen neu eingegeben werden)",
         "migrate_opcua": "Bk-Datenpunkte und die weiteren OPC-UA-Variablen des alten Projekts in OpcUaBkV.uad freigeben",
@@ -796,6 +844,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "users_none": "Im alten Projekt wurden keine Benutzer und Rollen gefunden.\n",
         "users_summary": "Ergänzte Rollen: {roles}\nErgänzte Benutzer: {users}\nBenutzer des Basisprojekts "
                          "beibehalten: {kept}\nOrdner: {path}\n",
+        "users_passwords": "Übernommene Passwörter (Argon2-Hash): {users}\n",
         "warn_user_passwords": "Die Passwörter der Benutzer {users} können nicht übernommen werden, da Automation "
                                "Studio 6 sie als Argon2-Hash speichert; bitte neu eingeben ({path}).",
         "warn_user_role_missing": "Benutzer {user} hat die unbekannte(n) Rolle(n) {roles}; bitte prüfen.",
@@ -901,21 +950,30 @@ def project_dir_from_file(project_file: Path) -> Path:
 
 def extract_base_project(archive: Path, target_dir: Path, old_project_file: Path,
                          suffix: str = NEW_PROJECT_SUFFIX) -> Path:
-    """Unpack a zipped BkNG base project into ``target_dir/<old name><suffix>`` (e.g. A0320_AS6).
+    """Unpack a zipped BkNG base project into ``target_dir/<old name><suffix><version>`` (e.g. A0320_BkNG301).
 
-    The project may lie at the top of the archive or in a folder of it.  Its
-    ``.apj`` file is renamed like the folder; the path of the renamed file is returned.
+    The version is the BkNG version of the base project (see bkng_version) without
+    dots; it is left out if unknown.  The project may lie at the top of the archive
+    or in a folder of it.  Its ``.apj`` file is renamed like the folder; the path of
+    the renamed file is returned.
     """
     if not archive.is_file() or not zipfile.is_zipfile(archive):
         raise ConversionError(tr("no_zip_file", path=archive))
     if not target_dir.is_dir():
         raise ConversionError(tr("no_target_dir", path=target_dir))
-    name = old_project_file.stem + suffix
-    destination = target_dir.resolve() / name
-    if destination.exists():
-        raise ConversionError(tr("target_exists", path=destination))
+    # The version is known only after unpacking: unpack into a hidden folder next to the destination first.
+    staging = Path(tempfile.mkdtemp(prefix=".BkNG_unpack_", dir=target_dir.resolve()))
+    try:
+        unpacked = unpack_project(archive, staging / "project")
+        name = old_project_file.stem + suffix + re.sub(r"\W", "", bkng_version(unpacked.parent) or "")
+        destination = target_dir.resolve() / name
+        if destination.exists():
+            raise ConversionError(tr("target_exists", path=destination))
+        unpacked.parent.rename(destination)
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
     project = destination / (name + PROJECT_FILE_SUFFIX)
-    unpack_project(archive, destination).rename(project)
+    (destination / unpacked.name).rename(project)
     return project
 
 
@@ -4063,14 +4121,18 @@ def enable_visu_variables(cpu: Path, chooser: FileChooser | None, variables: set
     return globals_ + [f"{task}:{name}" for task, names in tasks.items() for name in sorted(names)]
 
 
-# --- BkNG migration: BkNG project of Automation Studio 4 -> BkNG base project of Automation Studio 6 --
+# --- BkNG migration: BkNG project of Automation Studio 4 or 6 -> BkNG base project of Automation Studio 6 --
 
 AS_VERSION_RE = re.compile(r'<\?AutomationStudio\b[^?]*?(?<![\w])Version="?(?P<major>\d+)\.(?P<minor>\d+)')
 # A project with a VisuTask from this Automation Studio version on is a BkNG project to be migrated.
 MIGRATION_MIN_VERSION = (4, 4)
 MIGRATION_TARGET_MAJOR = 6
 PROJECT_KIND_BK2000, PROJECT_KIND_BKNG = "bk2000", "bkng"
+# Options of the GUI for a BkNG project of Automation Studio 6 (hardware taken over 1:1).
+OPTIONS_BKNG_AS6 = "bkng_as6"
 VISU_TASK = "VisuTask"
+# Version of a program (.prg); that of the VisuTask is the BkNG version of the project.
+PROGRAM_VERSION_RE = re.compile(r'<Program\b[^>]*\bVersion="([^"]*)"')
 # Objects directly below Logical that belong to the BkNG base; the new base project brings its own.
 BKNG_BASE_LOGICAL_OBJECTS = {name.casefold() for name in (
     "Global.var", "Global.typ", "Libraries", "Project.language", "System", "mappView", "VCShared", "Docu")}
@@ -4096,6 +4158,8 @@ IEC_SECTIONS = {
 CONFIG_ELEMENT_RE = re.compile(r'^[ \t]*<Element\b[^>]*\bID="(?P<id>[^"]*)"[^>]*?(?:/>|>.*?</Element>)[ \t]*\r?\n?',
                                re.DOTALL | re.MULTILINE)
 USER_ROLE_RE = re.compile(r'<Property\b[^>]*\bID="Role\[\d+\]"[^>]*\bValue="([^"]*)"')
+# Password of a user of Automation Studio 6 (Argon2 hash); the hashes of AS4 cannot be taken over.
+USER_ARGON2_PASSWORD_RE = re.compile(r'<Property\b[^>]*\bID="Password"[^>]*\bValue="\$argon2[^"]*"[^>]*/>')
 UA_TASK_RE = re.compile(r'^[ \t]*<Task\b[^>]*\bName="(?P<name>[^"]*)"[^>]*?(?:/>|>(?P<body>.*?)</Task>)[ \t]*\r?\n?',
                         re.DOTALL | re.MULTILINE)
 # mappView files.
@@ -4161,6 +4225,11 @@ def project_as_version(project_file: Path) -> tuple[int, int] | None:
     return (int(match.group("major")), int(match.group("minor"))) if match else None
 
 
+def is_as6_version(version: tuple[int, int] | None) -> bool:
+    """True for a project of Automation Studio 6, whose Ladder Diagrams need no conversion."""
+    return version is not None and version[0] == MIGRATION_TARGET_MAJOR
+
+
 def child_path(parent: Path, name: str) -> Path | None:
     """Return the file or folder ``name`` of ``parent`` regardless of case, if it exists."""
     if parent.is_dir():
@@ -4202,7 +4271,8 @@ def detect_project_kind(project_file: Path) -> tuple[str, tuple[int, int] | None
 
     A project with a program VisuTask from AS 4.4 on is a BkNG project that is
     migrated into the new BkNG base project; every other project is converted as
-    Bk2000 project.  A BkNG project of Automation Studio 6 needs no migration.
+    Bk2000 project.  A BkNG project of Automation Studio 6 is migrated as well
+    (its Ladder Diagrams are in the AS6 format already, see is_as6_version).
     """
     root = project_dir_from_file(project_file)
     version = project_as_version(project_file)
@@ -4211,10 +4281,32 @@ def detect_project_kind(project_file: Path) -> tuple[str, tuple[int, int] | None
     except ConversionError:
         return PROJECT_KIND_BK2000, version
     if version and version >= MIGRATION_MIN_VERSION and VISU_TASK.casefold() in logical_programs(logical):
-        if version[0] >= MIGRATION_TARGET_MAJOR:
-            raise ConversionError(tr("already_as6", path=project_file, version=f"{version[0]}.{version[1]}"))
+        if version[0] > MIGRATION_TARGET_MAJOR:
+            raise ConversionError(tr("unsupported_version", path=project_file, version=f"{version[0]}.{version[1]}"))
         return PROJECT_KIND_BKNG, version
     return PROJECT_KIND_BK2000, version
+
+
+def bkng_version(root: Path) -> str | None:
+    """Return the BkNG version of a BkNG project: the version of its program VisuTask (e.g. "3.0.1")."""
+    try:
+        folder = logical_programs(logical_dir(root)).get(VISU_TASK.casefold())
+    except ConversionError:
+        return None
+    for program in sorted(folder.glob("*.prg")) if folder is not None and folder.is_dir() else []:
+        match = PROGRAM_VERSION_RE.search(read_text(program))
+        if match:
+            return match.group(1)
+    return None
+
+
+def migration_mode_text(root: Path, version: tuple[int, int]) -> tuple[str, dict[str, str]]:
+    """Return text key and values describing the migration of a BkNG project (with its BkNG version if known)."""
+    values = {"version": f"{version[0]}.{version[1]}"}
+    bkng = bkng_version(root)
+    if bkng is None:
+        return "mode_migration", values
+    return "mode_migration_bkng", {**values, "bkng": bkng}
 
 
 def remove_package_entry(parent: Path, child: str) -> bool:
@@ -4933,7 +5025,8 @@ def migrate_application(old_root: Path, new_root: Path, chooser: FileChooser | N
     tasks: list[Path] = []
     ptop: list[str] = []  # PtoP tasks, which are not taken over
     for name, relative, _ in sw_sources(sw_text, SW_TASK_RE):
-        if name.casefold() == VISU_TASK.casefold():
+        # An AS6 project has the examples of the base project, too; they are removed, not taken over.
+        if name.casefold() == VISU_TASK.casefold() or BKNG_SAMPLE_RE.match(name):
             continue
         if is_ptop_name(name) or is_ptop_object(relative):
             ptop.append(name)
@@ -5058,6 +5151,183 @@ def migrate_libraries(old_root: Path, new_root: Path, chooser: FileChooser | Non
     return result
 
 
+# --- Hardware of an AS6 project (taken over 1:1) ---
+
+# Files of a hardware configuration that are taken over besides Hardware.hw.
+HARDWARE_FILES = ("Hardware.hwl", "Hardware.jpg")
+IO_MAPPING_VARIABLE_RE = re.compile(r"^\s*(?P<variable>\S.*?)\s+AT\s+%", re.IGNORECASE)
+IO_MAPPING_TASK_RE = re.compile(r"^::(?P<task>\w+):")
+
+
+@dataclass
+class HardwareCopyResult:
+    hardware: Path
+    configuration: str  # the old configuration
+    cpu: str
+    modules: int
+    files: list[str]
+    mappings: int
+    base_mappings: int
+    renamed: tuple[str, str] | None  # old and new name of the CPU folder of the base project
+    descriptions: list[Path]
+    dtm_folders: list[Path]
+    warnings: list[str]
+
+
+def module_parameters(text: str) -> dict[str, str]:
+    """Return the parameters of a hardware module, those of its connectors as "connector.ID"."""
+    parameters = hw_parameters(HW_ANY_CONNECTOR_RE.sub("", text))
+    for connector in HW_ANY_CONNECTOR_RE.finditer(text):
+        parameters.update((f"{connector.group('name')}.{key}", value)
+                          for key, value in hw_parameters(connector.group(0)).items())
+    return parameters
+
+
+def take_over_io_mapping(old_map: Path, new_map: Path, modules: set[str], old_cpu: str,
+                         new_cpu: str) -> tuple[int, int, list[str]]:
+    """Replace the new IoMap.iom by the old one, for hardware taken over 1:1.
+
+    Mappings of the examples of the base project are left out.  Mappings of the
+    base project to modules of the old hardware for variables the old project does
+    not map (e.g. new VisuTask variables) are kept, those to its CPU renamed to the
+    old CPU.  Returns the number of old and of kept mappings and the dropped
+    mapping lines of the base project.
+    """
+    def is_sample(variable: str) -> bool:
+        task = IO_MAPPING_TASK_RE.match(variable)
+        return bool(task and BKNG_SAMPLE_RE.match(task.group("task")))
+
+    text, encoding = read_text_with_encoding(old_map) if old_map.exists() else ("VAR_CONFIG\r\nEND_VAR\r\n", "utf-8")
+    lines, mapped = [], set()
+    for line in text.splitlines():
+        variable = IO_MAPPING_VARIABLE_RE.match(line)
+        if variable and is_sample(variable.group("variable")):
+            continue
+        if variable:
+            mapped.add(variable.group("variable").casefold())
+        lines.append(line)
+    kept, dropped = [], []
+    for line in read_text(new_map).splitlines() if new_map.exists() else []:
+        variable, module = IO_MAPPING_VARIABLE_RE.match(line), IO_MAPPING_RE.search(line)
+        if not variable or variable.group("variable").casefold() in mapped or is_sample(variable.group("variable")):
+            continue
+        if module and module.group("module") == new_cpu:
+            kept.append("\t" + line.strip().replace(f'"{new_cpu}"', f'"{old_cpu}"', 1))
+        elif module and module.group("module") in modules:
+            kept.append("\t" + line.strip())
+        else:
+            dropped.append(line.strip())
+    end = next((index for index in range(len(lines) - 1, -1, -1) if END_VAR_RE.match(lines[index])), None)
+    if end is None:
+        lines += ["VAR_CONFIG", *kept, "END_VAR"]
+    else:
+        lines[end:end] = kept
+    newline = "\r\n" if "\r\n" in text else "\n"
+    new_map.write_text(newline.join(lines) + newline, encoding=encoding, newline="")
+    return len(mapped), len(kept), dropped
+
+
+def copy_hardware(old_root: Path, new_root: Path, chooser: FileChooser | None = None) -> HardwareCopyResult:
+    """Take over the hardware of a BkNG project of Automation Studio 6 1:1 into the base project.
+
+    Hardware.hw (CPU with all settings, I/O modules), topology and picture of the
+    old configuration replace those of the target configuration; the I/O mapping is
+    taken over (see take_over_io_mapping), as are the DTM configuration and GSD
+    files.  The CPU folder of the base project gets the name of the old CPU, and
+    its ModuleId the type of the old CPU.  The software configuration (Cpu.sw,
+    mappView, OPC UA ...) of the base project is kept.
+    """
+    old_project, new_project = project_root(old_root), project_root(new_root)
+    old_configuration = active_configuration(old_project, chooser)
+    new_configuration = active_configuration(new_project, chooser, ask=True)
+    old_cpu_folder, new_cpu_folder = configuration_cpu(old_configuration), configuration_cpu(new_configuration)
+    old_cpu, new_cpu = old_cpu_folder.name, new_cpu_folder.name
+    old_hardware, new_hardware = old_configuration / "Hardware.hw", new_configuration / "Hardware.hw"
+    old_modules, new_modules = parse_hardware(read_text(old_hardware)), parse_hardware(read_text(new_hardware))
+    if old_cpu not in old_modules:
+        raise ConversionError(tr("cpu_not_in_hardware", cpu=old_cpu, path=old_hardware))
+    if new_cpu not in new_modules:
+        raise ConversionError(tr("cpu_not_in_hardware", cpu=new_cpu, path=new_hardware))
+    warnings: list[str] = []
+
+    # Settings of the base project the old project lacks, e.g. those of a newer BkNG base.
+    old_types = {name: module.type for name, module in old_modules.items()}
+    removed = []
+    for name, module in sorted(new_modules.items()):
+        old_name = old_cpu if name == new_cpu else name
+        if old_name not in old_modules:
+            removed.append(name)
+            continue
+        if old_types[old_name] != module.type:
+            continue
+        old_parameters = module_parameters(old_modules[old_name].text)
+        missing = [f"{key}={html.unescape(value)}" for key, value in module_parameters(module.text).items()
+                   if key not in old_parameters]
+        if missing:
+            warnings.append(tr("warn_hardware_base_settings", module=old_name, settings=", ".join(missing)))
+    if removed:
+        warnings.append(tr("warn_hardware_base_modules", modules=", ".join(removed)))
+
+    renamed = None
+    if old_cpu != new_cpu:
+        target = new_configuration / old_cpu
+        if target.exists() and target.name.casefold() != new_cpu.casefold():
+            raise ConversionError(tr("hardware_cpu_exists", cpu=new_cpu, new=old_cpu, path=target))
+        new_cpu_folder = new_cpu_folder.rename(target)
+        package = new_configuration / "Config.pkg"
+        text, encoding = read_text_with_encoding(package)
+        text = re.sub(rf'(<Object\b[^>]*Type="Cpu"[^>]*>\s*){re.escape(new_cpu)}(\s*</Object>)',
+                      lambda match: match.group(1) + old_cpu + match.group(2), text)
+        package.write_text(text, encoding=encoding, newline="")
+        renamed = (new_cpu, old_cpu)
+    old_type, new_type = old_types[old_cpu], new_modules[new_cpu].type
+    if old_type != new_type:
+        package = new_cpu_folder / "Cpu.pkg"
+        text, encoding = read_text_with_encoding(package)
+        package.write_text(re.sub(r'(<Configuration\b[^>]*\bModuleId=")[^"]*"',
+                                  lambda match: match.group(1) + old_type + '"', text),
+                           encoding=encoding, newline="")
+        warnings.append(tr("warn_hardware_cpu_type", new_type=new_type, old_type=old_type, path=package))
+
+    shutil.copy2(old_hardware, new_hardware)
+    files = [new_hardware.name]
+    for name in HARDWARE_FILES:
+        source = child_path(old_configuration, name)
+        if source is None or not source.is_file():
+            continue
+        target = new_configuration / source.name
+        if source.suffix.casefold() == ".hwl" and old_configuration.name != new_configuration.name:
+            # The topology refers to the hardware file by "<configuration>.Hardware.hw".
+            text, encoding = read_text_with_encoding(source)
+            text = text.replace(f'LogicalPath="{old_configuration.name}.', f'LogicalPath="{new_configuration.name}.')
+            target.write_text(text, encoding=encoding, newline="")
+        else:
+            shutil.copy2(source, target)
+        files.append(target.name)
+
+    mappings, base_mappings, dropped = take_over_io_mapping(old_cpu_folder / "IoMap.iom",
+                                                           new_cpu_folder / "IoMap.iom", set(old_modules), old_cpu,
+                                                           new_cpu)
+    files.append(f"{new_cpu_folder.name}/IoMap.iom")
+    warnings += [tr("warn_hardware_mapping_dropped", line=line) for line in dropped]
+
+    descriptions: list[Path] = []
+    gsd = gsd_descriptions(old_project)
+    for module in old_modules.values():
+        found = gsd_description_of(module.type, gsd)
+        if found is None:
+            continue
+        folder = new_project / DESCRIPTION_FOLDER
+        folder.mkdir(parents=True, exist_ok=True)
+        for source in found:
+            if folder / source.name not in descriptions:
+                shutil.copy2(source, folder / source.name)
+                descriptions.append(folder / source.name)
+    dtm_folders = copy_dtm_configuration(old_cpu_folder, new_cpu_folder, sorted(old_modules), old_modules)
+    return HardwareCopyResult(new_hardware, old_configuration.name, old_cpu, len(old_modules), files, mappings,
+                              base_mappings, renamed, descriptions, dtm_folders, warnings)
+
+
 # --- Users and roles ---
 
 def config_file(cpu: Path, suffix: str) -> Path | None:
@@ -5106,9 +5376,9 @@ def add_mpuserx_entries(path: Path, group: str, entries: list[list[tuple[str, st
 def migrate_users(old_root: Path, new_root: Path, chooser: FileChooser | None = None) -> MigrationResult:
     """Take over the users and roles of the old PLC that the new base project lacks.
 
-    Passwords cannot be taken over (AS6 stores them as Argon2 hash); the users are
-    created without password and reported.  The users and roles are also entered
-    in the mapp user management (.mpuserx) if the base project has one.
+    Passwords of an AS6 project (Argon2 hash) are taken over; those of AS4 cannot be,
+    these users are created without password and reported.  The users and roles are
+    also entered in the mapp user management (.mpuserx) if the base project has one.
     """
     old_cpu = configuration_cpu(active_configuration(project_root(old_root.resolve()), chooser))
     new_cpu = configuration_cpu(active_configuration(project_root(new_root.resolve()), chooser, ask=True))
@@ -5133,7 +5403,7 @@ def migrate_users(old_root: Path, new_root: Path, chooser: FileChooser | None = 
 
     users_text, users_encoding = read_text_with_encoding(new_users)
     present_users = {match.group("id") for match in CONFIG_ELEMENT_RE.finditer(users_text)}
-    added_users, kept_users = [], []
+    added_users, kept_users, with_password = [], [], []
     entries = []
     for match in CONFIG_ELEMENT_RE.finditer(read_text(old_users)) if old_users else []:
         user = match.group("id")
@@ -5144,7 +5414,12 @@ def migrate_users(old_root: Path, new_root: Path, chooser: FileChooser | None = 
         missing_roles = [role for role in user_roles if role not in present_roles and role not in added_roles]
         if missing_roles:
             result.warnings.append(tr("warn_user_role_missing", user=user, roles=", ".join(missing_roles)))
-        entries.append(f'  <Element ID="{user}" Type="User">{newline}    <Group ID="Roles">{newline}'
+        password = USER_ARGON2_PASSWORD_RE.search(match.group(0))
+        if password:
+            with_password.append(user)
+        entries.append(f'  <Element ID="{user}" Type="User">{newline}'
+                       + (f"    {password.group(0)}{newline}" if password else "")
+                       + f'    <Group ID="Roles">{newline}'
                        + "".join(f'      <Property ID="Role[{number}]" Value="{role}" />{newline}'
                                  for number, role in enumerate(user_roles, 1))
                        + f"    </Group>{newline}  </Element>{newline}")
@@ -5168,8 +5443,11 @@ def migrate_users(old_root: Path, new_root: Path, chooser: FileChooser | None = 
 
     result.details = tr("users_summary", roles=", ".join(added_roles) or "-", users=", ".join(added_users) or "-",
                         kept=", ".join(kept_users) or "-", path=new_users.parent)
-    if added_users:
-        result.warnings.append(tr("warn_user_passwords", users=", ".join(added_users), path=new_users))
+    if with_password:
+        result.details += tr("users_passwords", users=", ".join(with_password))
+    without_password = [user for user in added_users if user not in with_password]
+    if without_password:
+        result.warnings.append(tr("warn_user_passwords", users=", ".join(without_password), path=new_users))
     return result
 
 
@@ -5235,11 +5513,14 @@ def migrate_opcua(old_root: Path, new_root: Path, global_var: Path, chooser: Fil
     # Files of the BkNG base (e.g. OpcUaBkNG.uad) exist in the new project, too; their
     # variables that the new base no longer declares are left out silently.
     base_files = {path.name.casefold() for path in new_cpu.rglob("*.uad")} - {OPCUA_FILE.casefold()}
+    # Variables of the examples of the base project (in an AS6 project), which are not taken over.
+    samples = {name.casefold() for path in logical_dir(old_root).rglob("*.var") if BKNG_SAMPLE_RE.match(path.stem)
+               for _, names, _ in iec_entries(read_text(path), "var") for name in names}
     for path in sorted(old_cpu.rglob("*.uad")):
         text = read_text(path)
         section = UA_GLOBAL_VARIABLES_RE.search(text)
         for _, _, name in ua_top_level_variables(section.group("body") or "") if section else []:
-            if name.casefold() in enabled or name in variables or name in undeclared:
+            if name.casefold() in enabled or name.casefold() in samples or name in variables or name in undeclared:
                 continue
             if name.casefold() in declared:
                 variables.append(name)
@@ -5446,6 +5727,9 @@ def migrate_visu(old_root: Path, new_root: Path, chooser: FileChooser | None = N
                if dialog in old_index.dialogs and dialog not in new_index.dialogs]
     replaced = [content for content, path in old_index.contents.items()
                 if in_bkvisu(path) and content in new_index.contents]
+    # Contents of the examples and test pages, which are not taken over either.
+    ignored_contents = {content for page, path in old_index.pages.items() if ignored(page)
+                        for content in MV_CONTENT_ASSIGNMENT_RE.findall(read_text(path))}
     contents: list[str] = []
     for path in [old_index.pages[page] for page in pages] + [old_index.dialogs[dialog] for dialog in dialogs]:
         for content in MV_CONTENT_ASSIGNMENT_RE.findall(read_text(path)):
@@ -5456,9 +5740,11 @@ def migrate_visu(old_root: Path, new_root: Path, chooser: FileChooser | None = N
             else:
                 warnings.append(tr("warn_content_missing", content=content, page=path.stem))
     contents += [content for content, path in old_index.contents.items()
-                 if in_bkvisu(path) and content not in new_index.contents and content not in contents]
+                 if in_bkvisu(path) and content not in new_index.contents and content not in contents
+                 and content not in ignored_contents]
     contents += [content for content, _ in vis_entries(old_vis_text, "Content")
-                 if content in old_index.contents and content not in new_index.contents and content not in contents]
+                 if content in old_index.contents and content not in new_index.contents and content not in contents
+                 and content not in ignored_contents]
 
     # Custom widget libraries.
     packages_updated: list[Path] = []
@@ -5898,8 +6184,13 @@ class ConverterApp(ttk.Frame):
             PROJECT_KIND_BKNG: [("migrate_application", self.migrate_application), ("copy_io", self.copy_io),
                                 ("copy_ethernet", self.copy_ethernet), ("migrate_users", self.migrate_users),
                                 ("migrate_opcua", self.enable_opcua), ("migrate_visu", self.migrate_visu)],
+            # The hardware of an AS6 project is taken over 1:1, including the Ethernet settings.
+            OPTIONS_BKNG_AS6: [("migrate_application", self.migrate_application), ("copy_hardware", self.copy_io),
+                               ("migrate_users", self.migrate_users), ("migrate_opcua", self.enable_opcua),
+                               ("migrate_visu", self.migrate_visu)],
         }
         self.kind = PROJECT_KIND_BK2000
+        self.options_key = PROJECT_KIND_BK2000
         self.kind_text = ("mode_unknown", {})
         self.option_widgets: list[tk.Widget] = []
         # File and configuration choices of the current conversion run.
@@ -5999,7 +6290,7 @@ class ConverterApp(ttk.Frame):
         for widget in self.option_widgets:
             widget.destroy()
         self.option_widgets = []
-        for row, (key, variable) in enumerate(self.options_by_kind[self.kind]):
+        for row, (key, variable) in enumerate(self.options_by_kind[self.options_key]):
             widget = self._translate(ttk.Checkbutton(self.options, variable=variable), key)
             widget.grid(row=row, column=0, pady=2, sticky="w")
             self.option_widgets.append(widget)
@@ -6019,18 +6310,23 @@ class ConverterApp(ttk.Frame):
                 return
         elif self.unpack_key is not None:
             self._unpacking_done()  # the ZIP file being unpacked is no longer selected
-        kind = PROJECT_KIND_BK2000
+        kind, options_key = PROJECT_KIND_BK2000, PROJECT_KIND_BK2000
         try:
-            kind, version = detect_project_kind(self.source_project_file())
-            text = (("mode_migration", {"version": f"{version[0]}.{version[1]}"}) if kind == PROJECT_KIND_BKNG
-                    else ("mode_bk2000", {}))
+            source = self.source_project_file()
+            kind, version = detect_project_kind(source)
+            if kind == PROJECT_KIND_BKNG:
+                text = migration_mode_text(project_dir_from_file(source), version)
+                options_key = OPTIONS_BKNG_AS6 if is_as6_version(version) else kind
+            else:
+                text, options_key = ("mode_bk2000", {}), kind
         except (ConversionError, OSError) as error:
             text = (("mode_error", {"error": str(error).splitlines()[0]})
                     if path.suffix.casefold() in (PROJECT_FILE_SUFFIX, ZIP_SUFFIX) else ("mode_unknown", {}))
         self.kind_text = text
         self.kind_label.configure(text=tr(text[0], **text[1]))
-        if kind != self.kind:
-            self.kind = kind
+        self.kind = kind
+        if options_key != self.options_key:
+            self.options_key = options_key
             self.show_options()
 
     def _group(self, row: int, label: str) -> ttk.LabelFrame:
@@ -6201,7 +6497,10 @@ class ConverterApp(ttk.Frame):
                     check_bk2000_project(old_root)
                 archive = (Path(self.zip_path.get()), Path(self.zip_target.get()))
             else:
-                project_dir_from_file(Path(self.new_path.get()))
+                new_root = project_dir_from_file(Path(self.new_path.get()))
+                # Possible since BkNG projects of AS6 are migrated as well.
+                if new_root.resolve() == old_root.resolve():
+                    raise ConversionError(tr("same_project", path=new_root))
         except (ConversionError, OSError) as error:
             self.write_log(tr("error", error=error))
             messagebox.showerror(tr("conversion_failed"), str(error))
@@ -6342,7 +6641,9 @@ class ConverterApp(ttk.Frame):
             return
 
         migration = kind == PROJECT_KIND_BKNG
-        mode = (tr("mode_migration", version=f"{version[0]}.{version[1]}") if migration else tr("mode_bk2000"))
+        as6 = migration and is_as6_version(version)
+        key, values = migration_mode_text(old_root, version) if migration else ("mode_bk2000", {})
+        mode = tr(key, **values)
         report = ConversionReport(old_project, new_project, datetime.now(), mode=mode)
         if source != old_project:
             report.sections.append(ReportSection(tr("step_unpack_source"), tr(
@@ -6436,6 +6737,21 @@ class ConverterApp(ttk.Frame):
                         f"  {page}: {text}" for page, text in visu.navigation_buttons.items()))
             return ReportSection(tr("step_visu"), details, visu.warnings)
 
+        def hardware() -> ReportSection:
+            result = copy_hardware(old_root, new_root, chooser)
+            details = tr("hardware_summary", old=result.configuration, modules=result.modules, cpu=result.cpu,
+                         hardware=result.hardware, files=", ".join(result.files), mappings=result.mappings)
+            if result.base_mappings:
+                details += tr("hardware_base_mappings", count=result.base_mappings)
+            if result.renamed:
+                details += tr("hardware_cpu_renamed", old=result.renamed[0], new=result.renamed[1])
+            if result.descriptions:
+                details += tr("hardware_gsd", folder=result.descriptions[0].parent,
+                              files=", ".join(path.name for path in result.descriptions))
+            if result.dtm_folders:
+                details += tr("io_dtm", folders=", ".join(str(folder) for folder in result.dtm_folders))
+            return ReportSection(tr("step_hardware"), details, result.warnings)
+
         def migration_step(title: str, function: Callable[[], MigrationResult]) -> Callable[[], ReportSection]:
             def step() -> ReportSection:
                 result = function()
@@ -6484,15 +6800,18 @@ class ConverterApp(ttk.Frame):
                          "step_application", lambda: migrate_application(old_root, new_root, chooser))),
                      ("step_libraries", options["migrate_application"], migration_step(
                          "step_libraries", lambda: migrate_libraries(old_root, new_root, chooser))),
-                     ("step_io", options["copy_io"], io_configuration),
-                     ("step_ethernet", options["copy_ethernet"], ethernet_settings),
+                     # The hardware of an AS6 project is taken over 1:1, its Ethernet settings with it.
+                     ("step_hardware", as6 and options["copy_io"], hardware),
+                     ("step_io", not as6 and options["copy_io"], io_configuration),
+                     ("step_ethernet", not as6 and options["copy_ethernet"], ethernet_settings),
                      ("step_users", options["migrate_users"], migration_step(
                          "step_users", lambda: migrate_users(old_root, new_root, chooser))),
                      ("step_opcua", options["enable_opcua"], migration_step(
                          "step_opcua", lambda: migrate_opcua(old_root, new_root, global_var[0], chooser))),
                      ("step_visu_migration", options["migrate_visu"], migration_step(
                          "step_visu_migration", lambda: migrate_visu(old_root, new_root, chooser))),
-                     ("step_ladder_migration", True, ladder_migration)]
+                     # The Ladder Diagrams of an AS6 project are in the AS6 format already.
+                     ("step_ladder_migration", not as6, ladder_migration)]
         else:
             steps = [("step_analysis", True, analysis),
                      ("step_global", True, convert_global),
