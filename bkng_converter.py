@@ -396,6 +396,10 @@ TEXTS: dict[str, dict[str, str]] = {
         "migrate_users": "Take over users and roles (passwords must be entered again)",
         "migrate_opcua": "Enable the Bk datapoints and the further OPC UA variables of the old project in OpcUaBkV.uad",
         "migrate_visu": "Take over the customer visu (BkVisu pages, bindings, event bindings, media, texts)",
+        "migrate_mappview_config": "Take over the mappView configuration (Config.mappviewcfg) of the old project",
+        "migrate_certificates": "Take over customer certificates, private keys and SSL configurations (*.sslcfg)",
+        "migrate_ua_dv_config": "Take over the OPC UA default view configuration (UaDvConfig.uadcfg, role permissions)",
+        "migrate_ua_cs_config": "Take over the OPC UA client/server configuration (UaCsConfig.uacfg)",
         "step_migration_analysis": "Analysis of the BkNG project",
         "step_cleanup": "Remove examples and test pages of the base project",
         "step_global_migration": "Global declarations (Global.var, Global.typ)",
@@ -403,6 +407,10 @@ TEXTS: dict[str, dict[str, str]] = {
         "step_application": "Tasks and data modules",
         "step_libraries": "Libraries",
         "step_users": "Users and roles",
+        "step_certificates": "Certificates and SSL configurations",
+        "step_mappview_config": "mappView configuration (Config.mappviewcfg)",
+        "step_ua_dv_config": "OPC UA default view configuration (UaDvConfig)",
+        "step_ua_cs_config": "OPC UA client/server configuration (UaCsConfig)",
         "step_visu_migration": "Customer visu (mappView)",
         "step_ladder_migration": "Ladder Diagrams in the format of Automation Studio 6",
         "ladder_migration_none": "No Ladder Diagram in the format of Automation Studio < 6.\n",
@@ -486,6 +494,21 @@ TEXTS: dict[str, dict[str, str]] = {
                                "stores them as Argon2 hash; please enter them again ({path}).",
         "warn_user_role_missing": "User {user} has the unknown role(s) {roles}; please check.",
         "warn_mpuserx": "The users and roles could not be added to the mapp user management {path}; please add them.",
+        "config_none": "No {filename} found in the old project; the configuration of the base project is kept.\n",
+        "config_taken_over": "{source}\ntaken over to\n{target}\n",
+        "warn_config_as4_format": "{path} has the format of Automation Studio 4; open it in Automation Studio 6, check "
+                                  "the settings (obsolete or new ones) and save it.",
+        "warn_config_reference": "{path}: {setting} = {name} ({kind}) does not exist in the new project; please check.",
+        "kind_ssl": "SSL configuration",
+        "kind_role": "role",
+        "kind_user": "user",
+        "kind_visu": "visualization",
+        "certificates_none": "No customer certificates or SSL configurations found in the old project.\n",
+        "certificates_summary": "Copied below {path}:\n{files}",
+        "warn_certificates_kept": "Files present in the new project already were not overwritten although they "
+                                  "differ: {files} (below {path}); please check.",
+        "warn_ssl_base_certificate": "{name} of the old project uses the certificate {old}; {name} of the base project "
+                                     "keeps {new} ({path}). Please select the certificate to be used.",
         "opcua_further": "Further OPC UA variables of the old project enabled: {variables}\nTasks: {tasks}\n",
         "warn_opcua_undeclared": "Variables enabled in OPC UA in the old project are not declared in the new one: "
                                  "{names}.",
@@ -757,6 +780,11 @@ TEXTS: dict[str, dict[str, str]] = {
         "migrate_users": "Benutzer und Rollen übernehmen (Passwörter müssen neu eingegeben werden)",
         "migrate_opcua": "Bk-Datenpunkte und die weiteren OPC-UA-Variablen des alten Projekts in OpcUaBkV.uad freigeben",
         "migrate_visu": "Kundenvisu übernehmen (BkVisu-Seiten, Bindings, Event-Bindings, Medien, Texte)",
+        "migrate_mappview_config": "mappView-Konfiguration (Config.mappviewcfg) aus dem alten Projekt übernehmen",
+        "migrate_certificates": "Kundenspezifische Zertifikate, private Schlüssel und SSL-Konfigurationen (*.sslcfg) "
+                                "übernehmen",
+        "migrate_ua_dv_config": "OPC-UA-Default-View-Konfiguration (UaDvConfig.uadcfg, Rollenrechte) übernehmen",
+        "migrate_ua_cs_config": "OPC-UA-Client/Server-Konfiguration (UaCsConfig.uacfg) übernehmen",
         "step_migration_analysis": "Analyse des BkNG-Projekts",
         "step_cleanup": "Beispiele und Testseiten des Basisprojekts entfernen",
         "step_global_migration": "Globale Deklarationen (Global.var, Global.typ)",
@@ -764,6 +792,10 @@ TEXTS: dict[str, dict[str, str]] = {
         "step_application": "Tasks und Datenmodule",
         "step_libraries": "Bibliotheken",
         "step_users": "Benutzer und Rollen",
+        "step_certificates": "Zertifikate und SSL-Konfigurationen",
+        "step_mappview_config": "mappView-Konfiguration (Config.mappviewcfg)",
+        "step_ua_dv_config": "OPC-UA-Default-View-Konfiguration (UaDvConfig)",
+        "step_ua_cs_config": "OPC-UA-Client/Server-Konfiguration (UaCsConfig)",
         "step_visu_migration": "Kundenvisu (mappView)",
         "step_ladder_migration": "Kontaktpläne in das Format von Automation Studio 6",
         "ladder_migration_none": "Keine Kontaktpläne im Format von Automation Studio < 6.\n",
@@ -850,6 +882,24 @@ TEXTS: dict[str, dict[str, str]] = {
         "warn_user_role_missing": "Benutzer {user} hat die unbekannte(n) Rolle(n) {roles}; bitte prüfen.",
         "warn_mpuserx": "Die Benutzer und Rollen konnten nicht in die mapp-Benutzerverwaltung {path} eingetragen "
                         "werden; bitte ergänzen.",
+        "config_none": "Im alten Projekt wurde keine {filename} gefunden; die Konfiguration des Basisprojekts "
+                       "bleibt erhalten.\n",
+        "config_taken_over": "{source}\nübernommen nach\n{target}\n",
+        "warn_config_as4_format": "{path} hat das Format von Automation Studio 4; bitte in Automation Studio 6 "
+                                  "öffnen, die Einstellungen prüfen (entfallene oder neue) und speichern.",
+        "warn_config_reference": "{path}: {setting} = {name} ({kind}) existiert im neuen Projekt nicht; bitte prüfen.",
+        "kind_ssl": "SSL-Konfiguration",
+        "kind_role": "Rolle",
+        "kind_user": "Benutzer",
+        "kind_visu": "Visualisierung",
+        "certificates_none": "Im alten Projekt wurden keine kundenspezifischen Zertifikate oder SSL-Konfigurationen "
+                             "gefunden.\n",
+        "certificates_summary": "Kopiert unterhalb {path}:\n{files}",
+        "warn_certificates_kept": "Bereits im neuen Projekt vorhandene Dateien wurden nicht überschrieben, obwohl sie "
+                                  "sich unterscheiden: {files} (unterhalb {path}); bitte prüfen.",
+        "warn_ssl_base_certificate": "{name} des alten Projekts verwendet das Zertifikat {old}; {name} des "
+                                     "Basisprojekts behält {new} ({path}). Bitte das zu verwendende Zertifikat "
+                                     "auswählen.",
         "opcua_further": "Weitere OPC-UA-Variablen des alten Projekts freigegeben: {variables}\nTasks: {tasks}\n",
         "warn_opcua_undeclared": "Im alten Projekt in OPC UA freigegebene Variablen sind im neuen Projekt nicht "
                                  "deklariert: {names}.",
@@ -5380,8 +5430,7 @@ def migrate_users(old_root: Path, new_root: Path, chooser: FileChooser | None = 
     these users are created without password and reported.  The users and roles are
     also entered in the mapp user management (.mpuserx) if the base project has one.
     """
-    old_cpu = configuration_cpu(active_configuration(project_root(old_root.resolve()), chooser))
-    new_cpu = configuration_cpu(active_configuration(project_root(new_root.resolve()), chooser, ask=True))
+    old_cpu, new_cpu = migration_cpus(old_root, new_root, chooser)
     result = MigrationResult()
     old_users, old_roles = config_file(old_cpu, ".user"), config_file(old_cpu, ".role")
     if old_users is None and old_roles is None:
@@ -5448,6 +5497,163 @@ def migrate_users(old_root: Path, new_root: Path, chooser: FileChooser | None = 
     without_password = [user for user in added_users if user not in with_password]
     if without_password:
         result.warnings.append(tr("warn_user_passwords", users=", ".join(without_password), path=new_users))
+    return result
+
+
+# --- Configurations of the old PLC (mappView, certificates, OPC UA) ---
+
+MAPPVIEW_CONFIG_SUFFIX, UA_DV_CONFIG_SUFFIX, UA_CS_CONFIG_SUFFIX = ".mappviewcfg", ".uadcfg", ".uacfg"
+SSL_CONFIG_SUFFIX = ".sslcfg"
+SECURITY_FOLDER = "AccessAndSecurity"
+# Folders below AccessAndSecurity whose files (certificates, keys, SSL configurations) are taken over.
+SECURITY_SUBFOLDERS = ("CertificateStore", "TransportLayerSecurity")
+# Certificates and SSL configurations of the BkNG base (old and new); the new base project brings its own.
+BKNG_BASE_SECURITY_FILES = {name.casefold() for name in (
+    "BkNG_Default.cer", "BkNG_Default.key", "BkNG_Start.cer", "BkNG_Start.key", "BkNG_Def.sslcfg",
+    "BkNG_OPCUA.sslcfg")}
+# A configuration file without FileVersion has the format of Automation Studio 4.
+CONFIG_FILE_VERSION_RE = re.compile(r"<\?AutomationStudio\b[^?]*\bFileVersion=")
+CONFIG_ELEMENT_ID_RE = re.compile(r'<Element\b[^>]*\bID="([^"]*)"')
+VISUALIZATION_ID_RE = re.compile(r'<(?:\w+:)?Visualization\b[^>]*?\sid="([^"]*)"')
+# Settings of the configurations referring to other objects of the PLC: (setting IDs, kind, files of the objects).
+CONFIG_REFERENCES = (
+    (r"SSLConfiguration|AppCertificateStoreConfiguration", "kind_ssl", (SSL_CONFIG_SUFFIX,)),
+    (r"DiagnosticPageRole\[\d+\]|DefaultRole\d+|Name", "kind_role", (".role", ".brrole")),
+    (r"StartupUserDefaultUserName", "kind_user", (".user",)),
+    (r"defaultVisu", "kind_visu", (".vis",)),
+)
+
+
+def migration_cpus(old_root: Path, new_root: Path, chooser: FileChooser | None) -> tuple[Path, Path]:
+    """Return the CPU folder of the old project's active configuration and of the new project's target one."""
+    return (configuration_cpu(active_configuration(project_root(old_root.resolve()), chooser)),
+            configuration_cpu(active_configuration(project_root(new_root.resolve()), chooser, ask=True)))
+
+
+def property_values(text: str, ids: str) -> list[tuple[str, str]]:
+    """Return (ID, value) of every <Property> whose ID matches the regular expression ``ids``."""
+    return re.findall(rf'<(?:Property|Selector)\b[^>]*\bID="({ids})"[^>]*\bValue="([^"]*)"', text)
+
+
+def plc_object_ids(cpu: Path, suffixes: tuple[str, ...]) -> set[str]:
+    """Return the IDs (element IDs, visualization IDs and file names) of the configurations ``*suffix`` of ``cpu``."""
+    ids: set[str] = set()
+    for suffix in suffixes:
+        for path in cpu.rglob("*" + suffix):
+            if path.is_file():
+                text = read_text(path)
+                ids.add(path.stem)
+                ids.update(CONFIG_ELEMENT_ID_RE.findall(text) + VISUALIZATION_ID_RE.findall(text))
+    return ids
+
+
+def config_reference_warnings(text: str, new_cpu: Path, target: Path) -> list[str]:
+    """Open items for settings of a taken over configuration referring to objects the new PLC lacks."""
+    warnings = []
+    for ids, kind, suffixes in CONFIG_REFERENCES:
+        present = plc_object_ids(new_cpu, suffixes)
+        for setting, value in property_values(text, ids):
+            if value and value not in present:
+                warnings.append(tr("warn_config_reference", path=target, setting=setting, name=value, kind=tr(kind)))
+    return warnings
+
+
+def take_over_config(old_root: Path, new_root: Path, suffix: str,
+                     chooser: FileChooser | None = None) -> MigrationResult:
+    """Replace a configuration of the new PLC (e.g. Config.mappviewcfg) by that of the old PLC.
+
+    The file keeps its name and place in the new project.  Settings referring to SSL
+    configurations, roles, users or visualizations the new PLC lacks are reported,
+    as is a file in the format of Automation Studio 4.
+    """
+    old_cpu, new_cpu = migration_cpus(old_root, new_root, chooser)
+    result = MigrationResult()
+    source = config_file(old_cpu, suffix)
+    if source is None:
+        result.details = tr("config_none", filename="*" + suffix)
+        return result
+    target = config_file(new_cpu, suffix)
+    if target is None:
+        raise ConversionError(tr("not_found", filename="*" + suffix, root=new_cpu))
+    shutil.copy2(source, target)
+    result.details = tr("config_taken_over", source=source, target=target)
+    text = read_text(source)
+    result.warnings += config_reference_warnings(text, new_cpu, target)
+    if not CONFIG_FILE_VERSION_RE.search(text):
+        result.warnings.append(tr("warn_config_as4_format", path=target))
+    return result
+
+
+def new_plc_folder(old_cpu: Path, new_cpu: Path, relative: Path) -> Path:
+    """Return the folder ``relative`` of the new PLC; missing folders are created and listed in their package."""
+    old_folder, new_folder = old_cpu, new_cpu
+    for part in relative.parts:
+        child = child_path(new_folder, part)
+        if child is None:
+            child = new_folder / part
+            child.mkdir()
+            ensure_package_entry(old_folder, new_folder, part, keep_old_header=True)
+        old_folder, new_folder = old_folder / part, child
+    return new_folder
+
+
+def migrate_certificates(old_root: Path, new_root: Path, chooser: FileChooser | None = None) -> MigrationResult:
+    """Take over the customer certificates, private keys and SSL configurations (.sslcfg) of the old PLC.
+
+    The files of AccessAndSecurity/CertificateStore and TransportLayerSecurity are
+    copied into the same folders of the new PLC and listed in their packages.  Those
+    of the BkNG base are left out (the new base project brings its own) unless a
+    copied SSL configuration uses them; files the new PLC has already are kept.
+    """
+    old_cpu, new_cpu = migration_cpus(old_root, new_root, chooser)
+    result = MigrationResult()
+    security = child_path(old_cpu, SECURITY_FOLDER)
+    sources = []
+    for name in SECURITY_SUBFOLDERS:
+        folder = child_path(security, name) if security is not None else None
+        if folder is not None:
+            sources += sorted((path for path in folder.rglob("*")
+                               if path.is_file() and path.name.casefold() != PACKAGE_FILE.casefold()),
+                              key=lambda path: str(path).casefold())
+
+    def in_base(path: Path) -> bool:
+        return path.name.casefold() in BKNG_BASE_SECURITY_FILES
+
+    ssl_configs = [path for path in sources if path.suffix.casefold() == SSL_CONFIG_SUFFIX]
+    used = {value.casefold() for path in ssl_configs if not in_base(path)
+            for _setting, value in property_values(read_text(path), r"OwnCertificate(?:PrivateKey)?")}
+    copied, kept = [], []
+    for source in sources:
+        if in_base(source) and source.name.casefold() not in used:
+            continue
+        relative = source.relative_to(old_cpu)
+        folder = new_plc_folder(old_cpu, new_cpu, relative.parent)
+        present = child_path(folder, source.name)
+        if present is not None:
+            if present.read_bytes() != source.read_bytes():
+                kept.append(str(relative))
+            continue
+        shutil.copy2(source, folder / source.name)
+        ensure_package_entry(source.parent, folder, source.name, "File", keep_old_header=True)
+        copied.append(str(relative))
+        if source.suffix.casefold() == SSL_CONFIG_SUFFIX and not CONFIG_FILE_VERSION_RE.search(read_text(source)):
+            result.warnings.append(tr("warn_config_as4_format", path=folder / source.name))
+    # SSL configurations of the base that the customer switched to own certificates keep those of the new base.
+    for path in ssl_configs:
+        target = child_path(new_cpu / path.parent.relative_to(old_cpu), path.name)
+        if not in_base(path) or target is None:
+            continue
+        old_values = dict(property_values(read_text(path), r"OwnCertificate"))
+        new_values = dict(property_values(read_text(target), r"OwnCertificate"))
+        if old_values and old_values != new_values and not all(in_base(Path(value)) for value in old_values.values()):
+            result.warnings.append(tr("warn_ssl_base_certificate", name=path.name, old=old_values["OwnCertificate"],
+                                      new=new_values.get("OwnCertificate", "-"), path=target))
+    if not copied and not kept:
+        result.details = tr("certificates_none")
+        return result
+    result.details = tr("certificates_summary", path=new_cpu, files="".join(f"- {name}\n" for name in copied) or "-\n")
+    if kept:
+        result.warnings.append(tr("warn_certificates_kept", files=", ".join(kept), path=new_cpu))
     return result
 
 
@@ -6176,6 +6382,15 @@ class ConverterApp(ttk.Frame):
         self.migrate_application = tk.BooleanVar(value=True)
         self.migrate_users = tk.BooleanVar(value=True)
         self.migrate_visu = tk.BooleanVar(value=True)
+        # Configurations of the old PLC replace those of the base project only on request.
+        self.migrate_mappview_config = tk.BooleanVar(value=False)
+        self.migrate_certificates = tk.BooleanVar(value=False)
+        self.migrate_ua_dv_config = tk.BooleanVar(value=False)
+        self.migrate_ua_cs_config = tk.BooleanVar(value=False)
+        plc_configurations = [("migrate_certificates", self.migrate_certificates),
+                              ("migrate_mappview_config", self.migrate_mappview_config),
+                              ("migrate_ua_dv_config", self.migrate_ua_dv_config),
+                              ("migrate_ua_cs_config", self.migrate_ua_cs_config)]
         # Options (text key, variable) offered for each kind of source project.
         self.options_by_kind = {
             PROJECT_KIND_BK2000: [("copy_ladder", self.copy_ladder), ("copy_data", self.copy_data),
@@ -6183,11 +6398,12 @@ class ConverterApp(ttk.Frame):
                                   ("copy_opcua", self.enable_opcua), ("convert_visu", self.convert_visu)],
             PROJECT_KIND_BKNG: [("migrate_application", self.migrate_application), ("copy_io", self.copy_io),
                                 ("copy_ethernet", self.copy_ethernet), ("migrate_users", self.migrate_users),
-                                ("migrate_opcua", self.enable_opcua), ("migrate_visu", self.migrate_visu)],
+                                ("migrate_opcua", self.enable_opcua), ("migrate_visu", self.migrate_visu),
+                                *plc_configurations],
             # The hardware of an AS6 project is taken over 1:1, including the Ethernet settings.
             OPTIONS_BKNG_AS6: [("migrate_application", self.migrate_application), ("copy_hardware", self.copy_io),
                                ("migrate_users", self.migrate_users), ("migrate_opcua", self.enable_opcua),
-                               ("migrate_visu", self.migrate_visu)],
+                               ("migrate_visu", self.migrate_visu), *plc_configurations],
         }
         self.kind = PROJECT_KIND_BK2000
         self.options_key = PROJECT_KIND_BK2000
@@ -6509,7 +6725,10 @@ class ConverterApp(ttk.Frame):
             ("copy_ladder", self.copy_ladder), ("copy_data", self.copy_data), ("copy_io", self.copy_io),
             ("copy_ethernet", self.copy_ethernet), ("enable_opcua", self.enable_opcua),
             ("convert_visu", self.convert_visu), ("migrate_application", self.migrate_application),
-            ("migrate_users", self.migrate_users), ("migrate_visu", self.migrate_visu))}
+            ("migrate_users", self.migrate_users), ("migrate_visu", self.migrate_visu),
+            ("migrate_mappview_config", self.migrate_mappview_config),
+            ("migrate_certificates", self.migrate_certificates), ("migrate_ua_dv_config", self.migrate_ua_dv_config),
+            ("migrate_ua_cs_config", self.migrate_ua_cs_config))}
         self._enable_convert(False)
         self.progress.configure(value=0, maximum=1)
         self.progress_label.configure(text="")
@@ -6806,6 +7025,18 @@ class ConverterApp(ttk.Frame):
                      ("step_ethernet", not as6 and options["copy_ethernet"], ethernet_settings),
                      ("step_users", options["migrate_users"], migration_step(
                          "step_users", lambda: migrate_users(old_root, new_root, chooser))),
+                     # After the users and certificates: the configurations refer to roles and SSL configurations.
+                     ("step_certificates", options["migrate_certificates"], migration_step(
+                         "step_certificates", lambda: migrate_certificates(old_root, new_root, chooser))),
+                     ("step_mappview_config", options["migrate_mappview_config"], migration_step(
+                         "step_mappview_config",
+                         lambda: take_over_config(old_root, new_root, MAPPVIEW_CONFIG_SUFFIX, chooser))),
+                     ("step_ua_dv_config", options["migrate_ua_dv_config"], migration_step(
+                         "step_ua_dv_config",
+                         lambda: take_over_config(old_root, new_root, UA_DV_CONFIG_SUFFIX, chooser))),
+                     ("step_ua_cs_config", options["migrate_ua_cs_config"], migration_step(
+                         "step_ua_cs_config",
+                         lambda: take_over_config(old_root, new_root, UA_CS_CONFIG_SUFFIX, chooser))),
                      ("step_opcua", options["enable_opcua"], migration_step(
                          "step_opcua", lambda: migrate_opcua(old_root, new_root, global_var[0], chooser))),
                      ("step_visu_migration", options["migrate_visu"], migration_step(

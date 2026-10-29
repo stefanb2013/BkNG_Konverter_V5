@@ -189,9 +189,25 @@ braucht keine `dplist.dat`, `gruppen.dat` oder VC4-Visu. Sie läuft so ab:
    (`.mpuserx`). Passwörter eines AS6-Projekts (Argon2-Hash) werden übernommen; die
    eines AS4-Projekts lassen sich nicht übernehmen, weil AS6 sie als Argon2-Hash
    speichert; der Bericht fordert auf, sie neu einzugeben.
-7. Sie gibt die Bk-Datenpunkte und die weiteren OPC-UA-Variablen des alten Projekts
+7. Auf Wunsch (Optionen, standardmäßig abgewählt) übernimmt sie Konfigurationen der
+   alten Steuerung:
+   - kundenspezifische Zertifikate, private Schlüssel und SSL-Konfigurationen
+     (`AccessAndSecurity/CertificateStore`, `TransportLayerSecurity/*.sslcfg`) in
+     dieselben Ordner, eingetragen in die Packages. Die Dateien der BkNG-Basis
+     (`BkNG_Default.*`, `BkNG_Start.*`, `BkNG_Def.sslcfg`, `BkNG_OPCUA.sslcfg`) bringt
+     das neue Basisprojekt selbst mit; sie werden nur kopiert, wenn eine übernommene
+     SSL-Konfiguration sie verwendet. Vorhandene Dateien werden nicht überschrieben.
+   - `Config.mappviewcfg` (mappView-Konfiguration),
+   - `UaDvConfig.uadcfg` (OPC-UA-Default-View, Rollenrechte),
+   - `UaCsConfig.uacfg` (OPC-UA-Client/Server-Konfiguration).
+
+   Die Konfigurationsdateien ersetzen die des Basisprojekts. Verweist eine Einstellung
+   auf eine SSL-Konfiguration, eine Rolle, einen Benutzer oder eine Visualisierung, die
+   das neue Projekt nicht hat, nennt der Bericht das; ebenso Dateien im Format von
+   Automation Studio 4, die in AS6 geprüft und gespeichert werden sollten.
+8. Sie gibt die Bk-Datenpunkte und die weiteren OPC-UA-Variablen des alten Projekts
    frei.
-8. Sie kopiert die Kundenvisu: die Seiten, die das Basisprojekt nicht kennt
+9. Sie kopiert die Kundenvisu: die Seiten, die das Basisprojekt nicht kennt
    (BkVisu-Seiten, ohne die Beispiel- und Testseiten), mit ihren Contents, Dialogen,
    Medien, Texten und Session-Variablen. `BkV_StartContent` und `BkV_NavigationContent` werden durch die
    alten ersetzt. Alle Bindings und Event-Bindings dieser Contents kommen in
@@ -464,8 +480,24 @@ Migration needs no `dplist.dat`, `gruppen.dat` or VC4 visu. It works as follows:
    (`.mpuserx`). Passwords of an AS6 project (Argon2 hashes) are taken over. Those
    of an AS4 project cannot be taken over because AS6 stores them as Argon2 hashes;
    the report asks you to enter them again.
-7. It enables the Bk datapoints and the further OPC UA variables of the old project.
-8. It copies the customer visu: the pages unknown to the base project (BkVisu pages,
+7. On request (options, unchecked by default) it takes over configurations of the
+   old PLC:
+   - customer certificates, private keys and SSL configurations
+     (`AccessAndSecurity/CertificateStore`, `TransportLayerSecurity/*.sslcfg`) into
+     the same folders, listed in the packages. The new base project brings the files
+     of the BkNG base (`BkNG_Default.*`, `BkNG_Start.*`, `BkNG_Def.sslcfg`,
+     `BkNG_OPCUA.sslcfg`) itself; they are copied only if a copied SSL configuration
+     uses them. Existing files are not overwritten.
+   - `Config.mappviewcfg` (mappView configuration),
+   - `UaDvConfig.uadcfg` (OPC UA default view, role permissions),
+   - `UaCsConfig.uacfg` (OPC UA client/server configuration).
+
+   The configuration files replace those of the base project. If a setting refers to
+   an SSL configuration, role, user or visualization the new project lacks, the report
+   says so; as it does for files in the format of Automation Studio 4, which should be
+   checked and saved in AS6.
+8. It enables the Bk datapoints and the further OPC UA variables of the old project.
+9. It copies the customer visu: the pages unknown to the base project (BkVisu pages,
    without the example and test pages) with their contents, dialogs, media, texts and
    session variables.
    `BkV_StartContent` and `BkV_NavigationContent` are replaced by the old ones. All

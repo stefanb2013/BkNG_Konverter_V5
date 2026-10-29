@@ -92,6 +92,9 @@ Der Konverter erkennt die Betriebsart selbst und zeigt sie unter dem Quellprojek
 | Hardware 1:1 (nur AS6-Projekt) | Übernimmt die Hardware des alten Projekts unverändert: CPU mit allen Einstellungen (auch Ethernet), alle Module, I/O-Mapping, DTM-Konfiguration und GSD-Dateien. Der CPU-Ordner des Basisprojekts wird nach der alten CPU benannt. Fehlende Einstellungen des Basisprojekts nennt der Bericht. |
 | Benutzer und Rollen | Übernimmt Benutzer und Rollen, auch in die mapp-Benutzerverwaltung. Passwörter eines AS6-Projekts werden übernommen; die eines AS4-Projekts müssen neu eingegeben werden (AS6 speichert sie als Argon2-Hash). |
 | Bk-Datenpunkte und OPC-UA-Variablen | Gibt die Bk-Datenpunkte und die weiteren OPC-UA-Variablen des alten Projekts frei. |
+| Zertifikate und SSL-Konfigurationen | Übernimmt kundenspezifische Zertifikate, private Schlüssel und `*.sslcfg` in dieselben Ordner. Dateien der BkNG-Basis nur, wenn eine übernommene SSL-Konfiguration sie verwendet. Standardmäßig abgewählt. |
+| mappView-Konfiguration | Ersetzt die `Config.mappviewcfg` des Basisprojekts durch die alte. Standardmäßig abgewählt. |
+| OPC-UA-Default-View / Client/Server | Ersetzen die `UaDvConfig.uadcfg` bzw. `UaCsConfig.uacfg` des Basisprojekts durch die alte (falls vorhanden). Standardmäßig abgewählt. |
 | Kundenvisu | Kopiert die eigenen Seiten mit Contents, Dialogen, eigenen Layouts, Medien, Texten, Session-Variablen, Bindings und Event-Bindings. `BkV_StartContent` und `BkV_NavigationContent` werden durch die alten ersetzt. |
 
 Immer ausgeführt werden bei der Migration: Entfernen der Beispiele (`BkV_Sample`,
